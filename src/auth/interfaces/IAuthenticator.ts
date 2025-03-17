@@ -1,19 +1,20 @@
 // import { Page } from 'playwright';
-import { Page } from 'playwright';
+// import { Page } from 'playwright';
 import { AuthCredentials } from '../models';
-import { AuthResult } from '../models';
+// import { AuthResult } from '../models';
 
 /**
  * Interface for authentication services
  * Defines the contract for any authentication implementation
  */
 export interface IAuthenticator {
-  /**
-   * Performs login with the provided credentials
-   * @param credentials User credentials for authentication
-   * @returns Promise resolving to authentication result
-   */
-  login(credentials: AuthCredentials): Promise<AuthResult>;
+  // /**
+  //  * Performs login with the provided credenstials
+  //  * @param credentials User credentials for authentication
+  //  * @param page Page for context
+  //  * @returns Promise resolving to authentication result
+  //  */
+  // login(credentials: AuthCredentials, page: Page): Promise<AuthResult>;
 
   /**
    * Verifies if the current session is valid
@@ -33,13 +34,13 @@ export interface IAuthenticator {
    */
   logout(): Promise<void>;
 
-  /**
-   * Handles the TikTok cookie consent banner by clicking the "Allow all" button
-   * @returns Promise resolving to an object indicating success or failure
-   */
-  handleCookieConsent(
-    page: Page,
-  ): Promise<{ success: boolean; error?: string }>;
+  // /**
+  //  * Handles the TikTok cookie consent banner by clicking the "Allow all" button
+  //  * @returns Promise resolving to an object indicating success or failure
+  //  */
+  // handleCookieConsent(
+  //   page: Page,
+  // ): Promise<{ success: boolean; error?: string }>;
 
   /**
    * Cleans up resources used by the authenticator
