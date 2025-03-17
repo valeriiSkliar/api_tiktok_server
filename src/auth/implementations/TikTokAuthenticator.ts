@@ -13,8 +13,13 @@ import {
 } from '../interfaces';
 import { AuthCredentials, Session } from '../models';
 import { AuthenticationPipeline } from './AuthenticationPipeline';
-import { CookieConsentStep } from './steps/CookieConsentStep';
-import { LoginButtonStep } from './steps/LoginButtonStep';
+import {
+  CookieConsentStep,
+  LoginButtonStep,
+  SelectPhoneEmailLoginStep,
+  SubmitLoginFormStep,
+} from './steps';
+import { BrowserHelperService } from '../services';
 
 /**
  * TikTok authenticator implementation
@@ -31,6 +36,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   private currentSession: Session | null = null;
   private crawlerOptions: PlaywrightCrawlerOptions;
   private authPipeline: AuthenticationPipeline;
+  private browserHelperService: BrowserHelperService;
   private loginUrl =
     'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en';
 
@@ -58,6 +64,10 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.sessionManager = sessionManager;
     this.router = createPlaywrightRouter();
 
+    // Initialize browser helper service
+    this.browserHelperService = BrowserHelperService.getInstance();
+    this.browserHelperService.setLogger(logger);
+
     // Set default crawler options
     this.crawlerOptions = {
       headless: process.env.HEADLESS === 'true',
@@ -67,7 +77,9 @@ export class TikTokAuthenticator implements IAuthenticator {
     // Configure authentication pipeline with steps
     this.authPipeline
       .addStep(new CookieConsentStep(logger))
-      .addStep(new LoginButtonStep(logger));
+      .addStep(new LoginButtonStep(logger))
+      .addStep(new SelectPhoneEmailLoginStep(logger))
+      .addStep(new SubmitLoginFormStep(logger));
   }
 
   async runAuthenticator(credentials: AuthCredentials): Promise<void> {
@@ -106,20 +118,6 @@ export class TikTokAuthenticator implements IAuthenticator {
 
     return this.crawler;
   }
-
-  // /**
-  //  * Performs login with the provided credentials
-  //  * @param credentials User credentials for authentication
-  //  * @param page Page for context
-  //  * @returns Promise resolving to authentication result
-  //  */
-  // async login(credentials: AuthCredentials, page: Page): Promise<AuthResult> {
-  //   this.logger.info('Logging in to TikTok', {
-  //     email: credentials.email,
-  //   });
-
-  //   return this.authPipeline.execute(page, credentials);
-  // }
 
   /**
    * Verifies if the current session is valid
@@ -183,24 +181,6 @@ export class TikTokAuthenticator implements IAuthenticator {
 
     this.currentSession = null;
   }
-
-  // /**
-  //  * Handles the TikTok cookie consent banner by clicking the "Allow all" button
-  //  * @param page - Playwright page object
-  //  * @returns Promise resolving to an object indicating success or failure
-  //  */
-  // handleCookieConsent(
-  //   page: Page,
-  // ): Promise<{ success: boolean; error?: string }> {
-  //   // Use the CookieConsentStep from the pipeline
-  //   const cookieConsentStep = new CookieConsentStep(this.logger);
-  //   return cookieConsentStep
-  //     .execute(page, {} as AuthCredentials)
-  //     .then((success) => ({
-  //       success,
-  //       error: success ? undefined : 'Failed to handle cookie consent',
-  //     }));
-  // }
 
   /**
    * Cleans up resources used by the authenticator

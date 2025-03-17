@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
 import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
