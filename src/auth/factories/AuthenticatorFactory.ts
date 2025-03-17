@@ -1,5 +1,4 @@
-import { Page } from 'playwright';
-import { Log } from 'crawlee';
+import { Log, PlaywrightCrawlerOptions } from 'crawlee';
 import {
   IAuthenticator,
   ICaptchaSolver,
@@ -20,18 +19,17 @@ import { EmailApiService } from '../services';
 export class AuthenticatorFactory {
   /**
    * Creates a TikTok authenticator with all necessary dependencies
-   * @param page Playwright page object
    * @param logger Logger instance
    * @param options Additional options for authenticator creation
    * @returns TikTokAuthenticator instance
    */
   static createTikTokAuthenticator(
-    page: Page,
     logger: Log,
     options: {
       sessionStoragePath?: string;
       captchaSolverApiKey?: string;
       emailApiBaseUrl?: string;
+      crawlerOptions?: Partial<PlaywrightCrawlerOptions>;
     } = {},
   ): IAuthenticator {
     // Set default options
@@ -45,6 +43,7 @@ export class AuthenticatorFactory {
       options.emailApiBaseUrl ||
       process.env.EMAIL_API_BASE_URL ||
       'http://localhost:3000';
+    const crawlerOptions = options.crawlerOptions || {};
 
     // Create dependencies
     const sessionManager = AuthenticatorFactory.createSessionManager(
@@ -62,11 +61,11 @@ export class AuthenticatorFactory {
 
     // Create and return the authenticator
     return new TikTokAuthenticator(
-      page,
       logger,
       captchaSolver,
       emailVerifier,
       sessionManager,
+      crawlerOptions,
     );
   }
 

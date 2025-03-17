@@ -31,4 +31,10 @@ export interface IAuthenticator {
    * @returns Promise resolving when logout is complete
    */
   logout(): Promise<void>;
+
+  /**
+   * Cleans up resources used by the authenticator
+   * @returns Promise resolving when cleanup is complete
+   */
+  dispose(): Promise<void>;
 }
