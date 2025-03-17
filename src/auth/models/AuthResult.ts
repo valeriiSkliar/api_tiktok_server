@@ -9,12 +9,12 @@ export interface AuthResult {
    * Whether the authentication was successful
    */
   success: boolean;
-  
+
   /**
    * Session data if authentication was successful
    */
   session?: Session;
-  
+
   /**
    * Error message if authentication failed
    */

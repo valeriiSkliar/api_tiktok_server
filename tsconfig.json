@@ -19,5 +19,6 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
-  }
+  },
+  "exclude": ["base-scrapper_implementation", "base-scrapper_implementation/**/*", "test"]
 }

@@ -11,7 +11,7 @@ export interface IEmailVerificationHandler {
    * @returns Promise resolving to the verification code or null if not received
    */
   waitForCode(email: string): Promise<string | null>;
-  
+
   /**
    * Submits the verification code on the page
    * @param page Playwright page object
