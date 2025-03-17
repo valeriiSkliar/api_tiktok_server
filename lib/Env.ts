@@ -25,31 +25,61 @@ export const Env = createEnv({
     // API Keys
     OPENAI_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
-    SAD_CAPTCHA_API_KEY: z.string(),
+    SAD_CAPTCHA_API_KEY: z.string().default('test_api_key'),
     CHAPTCHA_RESOLVE_MODE: z.enum(['manual', 'api']).default('manual'),
 
+    // Headless mode
+    HEADLESS: z
+      .string()
+      .transform((val) => {
+        console.log(val);
+
+        return val.toLowerCase() === 'false';
+      })
+      .default('true'),
+
     // Database URLs
-    DATABASE_POSTGRES_URL: z.string().min(1),
-    DATABASE_SQLITE_URL: z.string().min(1),
-    DATABASE_MYSQL_URL: z.string().min(1),
+    DATABASE_POSTGRES_URL: z
+      .string()
+      .default('postgresql://user:password@localhost:5432/tiktok'),
+    DATABASE_SQLITE_URL: z.string().default('file:./data/tiktok.db'),
+    DATABASE_MYSQL_URL: z
+      .string()
+      .default('mysql://user:password@localhost:3306/tiktok'),
     // TikTok Credentials
-    TIKTOK_EMAIL: z.string(),
-    TIKTOK_PASSWORD: z.string(),
+    TIKTOK_EMAIL: z.string().default('test@example.com'),
+    TIKTOK_PASSWORD: z.string().default('password123'),
     // Crawler Settings
-    CRAWLER_MAX_WAIT_TIME: z.string().transform((val) => parseInt(val, 10)),
-    CRAWLER_CAPTCHA_TIMEOUT: z.string().transform((val) => parseInt(val, 10)),
+    CRAWLER_MAX_WAIT_TIME: z
+      .string()
+      .transform((val) => parseInt(val, 10))
+      .default('30000'),
+    CRAWLER_CAPTCHA_TIMEOUT: z
+      .string()
+      .transform((val) => parseInt(val, 10))
+      .default('60000'),
     CRAWLER_MAX_CAPTCHA_ATTEMPTS: z
       .string()
-      .transform((val) => parseInt(val, 10)),
-    CRAWLER_HUMAN_DELAY_MIN: z.string().transform((val) => parseInt(val, 10)),
-    CRAWLER_HUMAN_DELAY_MAX: z.string().transform((val) => parseInt(val, 10)),
+      .transform((val) => parseInt(val, 10))
+      .default('3'),
+    CRAWLER_HUMAN_DELAY_MIN: z
+      .string()
+      .transform((val) => parseInt(val, 10))
+      .default('500'),
+    CRAWLER_HUMAN_DELAY_MAX: z
+      .string()
+      .transform((val) => parseInt(val, 10))
+      .default('2000'),
 
     // Storage Paths
-    PATH_SCREENSHOTS: z.string(),
-    PATH_DATA: z.string(),
+    PATH_SCREENSHOTS: z.string().default('./storage/screenshots'),
+    PATH_DATA: z.string().default('./storage/data'),
 
     // Proxy Settings
-    PROXY_ENABLED: z.string().transform((val) => val.toLowerCase() === 'true'),
+    PROXY_ENABLED: z
+      .string()
+      .transform((val) => val.toLowerCase() === 'true')
+      .default('false'),
     PROXY_URL: z.string().optional(),
 
     // Filter Settings
@@ -64,7 +94,8 @@ export const Env = createEnv({
     // User Agent Settings
     USER_AGENT_USE_CUSTOM: z
       .string()
-      .transform((val) => val.toLowerCase() === 'true'),
+      .transform((val) => val.toLowerCase() === 'true')
+      .default('false'),
     USER_AGENT_CUSTOM: z.string().optional(),
   },
   /**
@@ -112,6 +143,9 @@ export const Env = createEnv({
     FILTER_AD_LANGUAGE: process.env.FILTER_AD_LANGUAGE,
     FILTER_AD_FORMAT: process.env.FILTER_AD_FORMAT,
     FILTER_LIKES: process.env.FILTER_LIKES,
+
+    // Headless mode
+    HEADLESS: process.env.HEADLESS,
 
     // User Agent Settings
     USER_AGENT_USE_CUSTOM: process.env.USER_AGENT_USE_CUSTOM,

@@ -2,6 +2,7 @@ import { PlaywrightCrawler, Log } from 'crawlee';
 import * as dotenv from 'dotenv';
 import { AuthenticatorFactory } from './auth/factories/AuthenticatorFactory';
 import { AuthCredentials } from './auth/models/AuthCredentials';
+import { Env } from '../lib/Env';
 
 // Load environment variables
 dotenv.config();
@@ -12,16 +13,17 @@ dotenv.config();
 async function runAuthenticator() {
   const logger = new Log({ prefix: 'AuthRunner' });
   logger.info('Starting TikTok authenticator runner');
-
+  const headless = Env.HEADLESS;
+  logger.info('Headless mode: ' + headless);
   try {
     // Create a PlaywrightCrawler instance
     const crawler = new PlaywrightCrawler({
       // Use headless mode based on environment variable
-      headless: process.env.HEADLESS === 'true',
+      headless,
 
       // Define the request handler - this is where we'll implement our authentication logic
       async requestHandler({ page, log }) {
-        log.info('Starting authentication process');
+        log.info('Starting authentication flow');
 
         // Create authenticator using the factory
         const authenticator = AuthenticatorFactory.createTikTokAuthenticator(

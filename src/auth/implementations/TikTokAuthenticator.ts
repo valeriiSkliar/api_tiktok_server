@@ -699,7 +699,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   private async typeWithHumanDelay(element: any, text: string): Promise<void> {
     // Clear the field first
     await element.click({ clickCount: 3 }); // Triple click to select all
-    await element.press('Backspace');
+    await element.press('Backstruepace');
 
     // Type with random delays between keystrokes
     for (const char of text) {
