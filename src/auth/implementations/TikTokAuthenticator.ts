@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/require-await */
-import { Log, PlaywrightCrawler, PlaywrightCrawlerOptions } from 'crawlee';
+import {
+  createPlaywrightRouter,
+  Log,
+  PlaywrightCrawler,
+  PlaywrightCrawlerOptions,
+} from 'crawlee';
 import {
   IAuthenticator,
   ICaptchaSolver,
@@ -7,6 +12,7 @@ import {
   ISessionManager,
 } from '../interfaces';
 import { AuthCredentials, AuthResult, Session } from '../models';
+import { Page } from 'playwright';
 
 /**
  * TikTok authenticator implementation
@@ -14,13 +20,16 @@ import { AuthCredentials, AuthResult, Session } from '../models';
  */
 export class TikTokAuthenticator implements IAuthenticator {
   private crawler: PlaywrightCrawler | null = null;
+  private router: ReturnType<typeof createPlaywrightRouter> =
+    createPlaywrightRouter();
   private logger: Log;
   private captchaSolver: ICaptchaSolver;
   private emailVerifier: IEmailVerificationHandler;
   private sessionManager: ISessionManager;
   private currentSession: Session | null = null;
   private crawlerOptions: PlaywrightCrawlerOptions;
-  private loginUrl = 'https://www.tiktok.com/login';
+  private loginUrl =
+    'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en';
 
   /**
    * Creates a new TikTokAuthenticator instance
@@ -41,6 +50,7 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.captchaSolver = captchaSolver;
     this.emailVerifier = emailVerifier;
     this.sessionManager = sessionManager;
+    this.router = createPlaywrightRouter();
 
     // Set default crawler options
     this.crawlerOptions = {
@@ -48,12 +58,16 @@ export class TikTokAuthenticator implements IAuthenticator {
       ...crawlerOptions,
     };
   }
+  async runAuthenticator(credentials: AuthCredentials): Promise<void> {
+    this.initCrawler(credentials);
+    await this.crawler?.run([this.loginUrl]);
+  }
 
   /**
    * Initialize the crawler with the appropriate request handlers
    * @private
    */
-  private initCrawler(): PlaywrightCrawler {
+  private initCrawler(credentials: AuthCredentials): PlaywrightCrawler {
     if (this.crawler) {
       return this.crawler;
     }
@@ -61,19 +75,25 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.logger.info(
       'Initializing PlaywrightCrawler for TikTok authentication',
     );
+    this.router.addDefaultHandler(async (ctx) => {
+      // ctx.log.info('addDefaultHandler');
+      await this.handleCookieConsent(ctx.page);
+      await this.login(credentials);
+    });
 
     this.crawler = new PlaywrightCrawler({
       ...this.crawlerOptions,
+      requestHandler: this.router,
 
       // Define the request handler for authentication
-      async requestHandler({ page, log }) {
-        log.info('Starting TikTok authentication flow', {
-          url: page.url(),
-        });
+      // async requestHandler({ page, log }) {
+      //   log.info('Starting TikTok authentication flow', {
+      //     url: page.url(),
+      //   });
 
-        // Authentication logic will be implemented here
-        // This will be called by the login method
-      },
+      //   // Authentication logic will be implemented here
+      //   // This will be called by the login method
+      // },
 
       // Handle failures
       failedRequestHandler({ request, log, error }) {
@@ -96,67 +116,10 @@ export class TikTokAuthenticator implements IAuthenticator {
       email: credentials.email,
     });
 
-    try {
-      // Initialize the crawler if not already initialized
-      const crawler = this.initCrawler();
-
-      // Set up a promise to track the login result
-      let loginResolve: (result: AuthResult) => void;
-      let loginReject: (error: Error) => void;
-
-      const loginPromise = new Promise<AuthResult>((resolve, reject) => {
-        loginResolve = resolve;
-        loginReject = reject;
-      });
-
-      // Override the request handler for this specific login operation
-      crawler.router.addDefaultHandler(async ({ page, log }) => {
-        try {
-          log.info('Executing login flow for TikTok');
-
-          // Navigate to the login page
-          await page.goto(this.loginUrl);
-
-          // TODO: Implement the actual login logic
-          // This would include:
-          // 1. Filling in credentials
-          // 2. Handling captchas using this.captchaSolver
-          // 3. Handling email verification using this.emailVerifier
-          // 4. Saving the session using this.sessionManager
-
-          // For now, just return a mock result
-          const mockResult: AuthResult = {
-            success: false,
-            error: 'Login method not fully implemented yet',
-          };
-
-          loginResolve(mockResult);
-        } catch (error) {
-          log.error('Error during login process', {
-            error: error instanceof Error ? error.message : String(error),
-          });
-
-          loginReject(
-            error instanceof Error ? error : new Error(String(error)),
-          );
-        }
-      });
-
-      // Run the crawler with the login URL
-      await crawler.run([this.loginUrl]);
-
-      // Wait for the login process to complete
-      return await loginPromise;
-    } catch (error) {
-      this.logger.error('Failed to login to TikTok', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    return {
+      success: false,
+      error: 'Login method not fully implemented yet',
+    };
   }
 
   /**
@@ -220,6 +183,55 @@ export class TikTokAuthenticator implements IAuthenticator {
     }
 
     this.currentSession = null;
+  }
+
+  /**
+   * Handles the TikTok cookie consent banner by clicking the "Allow all" button
+   * @returns Promise resolving to an object indicating success or failure
+   */
+  async handleCookieConsent(
+    page: Page,
+  ): Promise<{ success: boolean; error?: string }> {
+    this.logger.info('Handling cookie consent banner');
+    await page.waitForTimeout(2000);
+    const allowAllButton = page.locator(
+      'div.tiktok-cookie-banner button:has-text("Allow all")',
+    );
+
+    try {
+      // Look for the "Allow all" button within the cookie banner
+
+      // Check if the button exists and click it
+      if ((await allowAllButton.count()) > 0) {
+        this.logger.info('Clicking "Allow all" button');
+        await allowAllButton.click();
+        this.logger.info('Successfully clicked "Allow all" button');
+
+        // Wait a moment for the banner to disappear
+        await page.waitForTimeout(2000);
+
+        return { success: true };
+      } else {
+        this.logger.warning(
+          'Could not find "Allow all" button in the cookie banner',
+        );
+        // No cookie banner found, which is not an error - might be already accepted
+        return { success: true };
+      }
+    } catch (error: unknown) {
+      // Take a screenshot to help debug
+      await page.screenshot({
+        path: 'storage/screenshots/cookie-consent-error.png',
+      });
+      this.logger.error('Error handling cookie consent:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**

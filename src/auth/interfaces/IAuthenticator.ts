@@ -1,4 +1,5 @@
 // import { Page } from 'playwright';
+import { Page } from 'playwright';
 import { AuthCredentials } from '../models';
 import { AuthResult } from '../models';
 
@@ -33,8 +34,23 @@ export interface IAuthenticator {
   logout(): Promise<void>;
 
   /**
+   * Handles the TikTok cookie consent banner by clicking the "Allow all" button
+   * @returns Promise resolving to an object indicating success or failure
+   */
+  handleCookieConsent(
+    page: Page,
+  ): Promise<{ success: boolean; error?: string }>;
+
+  /**
    * Cleans up resources used by the authenticator
    * @returns Promise resolving when cleanup is complete
    */
   dispose(): Promise<void>;
+
+  /**
+   * Runs the authentication process
+   * @param credentials User credentials for authentication
+   * @returns Promise resolving to authentication result
+   */
+  runAuthenticator(credentials: AuthCredentials): Promise<void>;
 }
