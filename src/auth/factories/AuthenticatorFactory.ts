@@ -12,7 +12,7 @@ import {
   FileSystemSessionManager,
 } from '../implementations';
 import { EmailApiService } from '../services';
-import { Env } from 'lib/Env';
+import { Env } from '@lib/Env';
 
 /**
  * Factory for creating authenticator instances

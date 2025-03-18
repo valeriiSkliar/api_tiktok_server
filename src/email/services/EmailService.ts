@@ -3,6 +3,7 @@ import {
   ImapFlowOptions,
   FetchMessageObject,
   FetchQueryObject,
+  MailboxObject,
 } from 'imapflow';
 import { PrismaClient, EmailVerificationStatus } from '@prisma/client';
 import {
@@ -157,5 +158,67 @@ export class EmailService implements IEmailService {
     return (await this.prisma.emailVerificationCode.findFirst({
       where: { code },
     })) as EmailVerificationCodeType;
+  }
+
+  /**
+   * Tests the connection to the email server
+   * @returns Promise resolving to connection status details
+   */
+  async testConnection(): Promise<{
+    success: boolean;
+    message: string;
+    details?: Record<string, unknown>;
+  }> {
+    const client = this.getImapClient();
+
+    try {
+      this.logger.info('Testing connection to IMAP server...');
+      await client.connect();
+
+      // Try to open the INBOX to verify full connection capabilities
+      const lock = await client.getMailboxLock('INBOX');
+      try {
+        const mailbox = client.mailbox as MailboxObject | null;
+
+        return {
+          success: true,
+          message: 'Successfully connected to email server',
+          details: {
+            host: this.imapConfig.host,
+            user: this.imapConfig.auth.user,
+            mailbox: mailbox
+              ? {
+                  path: mailbox.path,
+                  exists: mailbox.exists,
+                  total: mailbox.exists,
+                }
+              : 'No mailbox information available',
+          },
+        };
+      } finally {
+        lock.release();
+      }
+    } catch (error) {
+      this.logger.error('Failed to connect to email server:', {
+        error: error instanceof Error ? error.message : String(error),
+        host: this.imapConfig.host,
+        user: this.imapConfig.auth.user,
+      });
+
+      return {
+        success: false,
+        message: `Connection failed: ${error instanceof Error ? error.message : String(error)}`,
+        details: {
+          host: this.imapConfig.host,
+          user: this.imapConfig.auth.user,
+        },
+      };
+    } finally {
+      try {
+        await client.logout();
+      } catch (error: unknown) {
+        this.logger.error('Failed to logout from email server:', { error });
+      }
+    }
   }
 }

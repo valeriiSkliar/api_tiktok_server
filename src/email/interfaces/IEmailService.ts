@@ -16,6 +16,16 @@ export interface EmailVerificationCodeType {
 
 export interface IEmailService {
   /**
+   * Tests the connection to the email server
+   * @returns Promise resolving to connection status details
+   */
+  testConnection(): Promise<{
+    success: boolean;
+    message: string;
+    details?: Record<string, unknown>;
+  }>;
+
+  /**
    * Retrieves the latest verification code from emails
    * @returns Promise with the verification code or null if not found
    */

@@ -19,7 +19,13 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "email:test": "ts-node -r tsconfig-paths/register src/email-standalone.ts",
+    "email:connection": "ts-node -r tsconfig-paths/register src/email-standalone.ts connection",
+    "email:latest-code": "ts-node -r tsconfig-paths/register src/email-standalone.ts latest-code",
+    "email:wait-code": "ts-node -r tsconfig-paths/register src/email-standalone.ts wait-code",
+    "email:mark-used": "ts-node -r tsconfig-paths/register src/email-standalone.ts mark-used",
+    "email:status": "ts-node -r tsconfig-paths/register src/email-standalone.ts status"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -43,7 +49,8 @@
     "sequelize": "^6.37.6",
     "uuid": "^11.1.0",
     "winston": "^3.17.0",
-    "zod": "3.22.4"
+    "zod": "3.22.4",
+    "chalk": "^4.1.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
