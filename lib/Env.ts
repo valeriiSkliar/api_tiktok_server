@@ -27,7 +27,9 @@ export const Env = createEnv({
     GEMINI_API_KEY: z.string().optional(),
     SAD_CAPTCHA_API_KEY: z.string().default('test_api_key'),
     CHAPTCHA_RESOLVE_MODE: z.enum(['manual', 'api']).default('manual'),
-
+    CAPTCHA_SCREENSHOTS_DIR: z
+      .string()
+      .default('./storage/captcha-screenshots'),
     // Headless mode
     HEADLESS: z
       .string()
@@ -111,6 +113,7 @@ export const Env = createEnv({
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     SAD_CAPTCHA_API_KEY: process.env.SAD_CAPTCHA_API_KEY,
     CHAPTCHA_RESOLVE_MODE: process.env.CHAPTCHA_RESOLVE_MODE,
+    CAPTCHA_SCREENSHOTS_DIR: process.env.CAPTCHA_SCREENSHOTS_DIR,
 
     // Database URLs
     DATABASE_POSTGRES_URL: process.env.DATABASE_POSTGRES_URL,

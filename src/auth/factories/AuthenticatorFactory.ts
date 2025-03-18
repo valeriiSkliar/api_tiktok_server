@@ -12,6 +12,7 @@ import {
   FileSystemSessionManager,
 } from '../implementations';
 import { EmailApiService } from '../services';
+import { Env } from 'lib/Env';
 
 /**
  * Factory for creating authenticator instances
@@ -92,7 +93,9 @@ export class AuthenticatorFactory {
     apiKey: string,
     logger: Log,
   ): ICaptchaSolver {
-    return new SadCaptchaSolver(logger, apiKey);
+    const screenshotsDir =
+      Env.CAPTCHA_SCREENSHOTS_DIR || 'storage/captcha-screenshots';
+    return new SadCaptchaSolver(logger, apiKey, screenshotsDir);
   }
 
   /**
