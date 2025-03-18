@@ -19,3 +19,25 @@ model SearchRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 }
+
+model EmailVerificationCode {
+  id           Int      @id @default(autoincrement())
+  code         String
+  messageId    String
+  senderEmail  String
+  receivedAt   DateTime @default(now())
+  emailBody    String?  @db.Text
+  status       EmailVerificationStatus @default(UNUSED)
+  usedAt       DateTime?
+  additionalInfo String? @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([code, messageId])
+  @@index([status])
+}
+
+enum EmailVerificationStatus {
+  UNUSED
+  USED
+}

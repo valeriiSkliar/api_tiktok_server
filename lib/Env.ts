@@ -47,6 +47,21 @@ export const Env = createEnv({
     DATABASE_MYSQL_URL: z
       .string()
       .default('mysql://user:password@localhost:3306/tiktok'),
+
+    // Email Service Configuration
+    UKR_NET_EMAIL: z.string(),
+    UKR_NET_APP_PASSWORD: z.string(),
+    UKR_NET_IMAP_HOST: z.string().default('imap.ukr.net'),
+    UKR_NET_SMTP_HOST: z.string().default('smtp.ukr.net'),
+    UKR_NET_SMTP_PORT: z
+      .string()
+      .transform((val) => parseInt(val, 10))
+      .default('465'),
+    UKR_NET_SMTP_SECURE: z
+      .string()
+      .transform((val) => val.toLowerCase() === 'true')
+      .default('true'),
+
     // TikTok Credentials
     TIKTOK_EMAIL: z.string().default('test@example.com'),
     TIKTOK_PASSWORD: z.string().default('password123'),
@@ -118,6 +133,14 @@ export const Env = createEnv({
     DATABASE_POSTGRES_URL: process.env.DATABASE_POSTGRES_URL,
     DATABASE_SQLITE_URL: process.env.DATABASE_SQLITE_URL,
     DATABASE_MYSQL_URL: process.env.DATABASE_MYSQL_URL,
+
+    // Email Service Configuration
+    UKR_NET_EMAIL: process.env.UKR_NET_EMAIL,
+    UKR_NET_APP_PASSWORD: process.env.UKR_NET_APP_PASSWORD,
+    UKR_NET_IMAP_HOST: process.env.UKR_NET_IMAP_HOST,
+    UKR_NET_SMTP_HOST: process.env.UKR_NET_SMTP_HOST,
+    UKR_NET_SMTP_PORT: process.env.UKR_NET_SMTP_PORT,
+    UKR_NET_SMTP_SECURE: process.env.UKR_NET_SMTP_SECURE,
 
     // TikTok Credentials
     TIKTOK_EMAIL: process.env.TIKTOK_EMAIL,
