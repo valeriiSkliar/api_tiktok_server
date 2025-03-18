@@ -1,4 +1,4 @@
-/* eslint-disable */
+// src/auth/implementations/SadCaptchaSolver.ts
 
 import { Log } from 'crawlee';
 import { ICaptchaSolver } from '../interfaces';
@@ -7,6 +7,7 @@ import { Page } from 'playwright';
 import axios from 'axios';
 import * as fs from 'fs';
 import path from 'path';
+import { BrowserHelperService } from '../services';
 
 interface SadCaptchaResponse {
   pointOneProportionX: number;
@@ -24,6 +25,7 @@ export class SadCaptchaSolver implements ICaptchaSolver {
   private readonly logger: Log;
   private readonly apiKey: string;
   private readonly screenshotsDir: string;
+  private browserHelperService: BrowserHelperService;
 
   /**
    * Creates a new SadCaptchaSolver instance
@@ -31,11 +33,16 @@ export class SadCaptchaSolver implements ICaptchaSolver {
    * @param apiKey SadCaptcha API key
    * @param screenshotsDir Directory to store captcha screenshots
    */
-  constructor(logger: Log, apiKey: string, screenshotsDir = 'storage/screenshots') {
+  constructor(
+    logger: Log,
+    apiKey: string,
+    screenshotsDir = 'storage/screenshots',
+  ) {
     this.logger = logger;
     this.apiKey = apiKey;
     this.screenshotsDir = screenshotsDir;
-    
+    this.browserHelperService = BrowserHelperService.getInstance();
+    this.browserHelperService.setLogger(logger);
     // Ensure screenshots directory exists
     this.ensureDirectoryExists(this.screenshotsDir);
   }
@@ -47,7 +54,7 @@ export class SadCaptchaSolver implements ICaptchaSolver {
    */
   async detect(page: Page): Promise<CaptchaDetectionResult> {
     this.logger.info('Detecting captcha', { url: page.url() });
-    
+
     try {
       // Common captcha selectors for TikTok
       const captchaSelectors = [
@@ -66,17 +73,20 @@ export class SadCaptchaSolver implements ICaptchaSolver {
       // Check for captcha elements
       for (const selector of captchaSelectors) {
         const isVisible = await page.isVisible(selector).catch(() => false);
-        
+
         if (isVisible) {
           this.logger.info(`Captcha detected with selector: ${selector}`);
-          
+
           // Take a screenshot of the captcha
           const timestamp = Date.now();
-          const screenshotPath = path.join(this.screenshotsDir, `captcha-${timestamp}.png`);
-          
+          const screenshotPath = path.join(
+            this.screenshotsDir,
+            `captcha-${timestamp}.png`,
+          );
+
           // Get the element handle
           const element = await page.$(selector);
-          
+
           // Take a screenshot of the captcha element
           if (element) {
             await element.screenshot({ path: screenshotPath });
@@ -84,16 +94,16 @@ export class SadCaptchaSolver implements ICaptchaSolver {
             // Fallback to full page screenshot
             await page.screenshot({ path: screenshotPath });
           }
-          
+
           // Determine captcha type
           let captchaType = 'unknown';
-          
+
           if (selector.includes('slide')) {
             captchaType = 'tiktok-slide';
           } else if (selector.includes('verify')) {
             captchaType = 'tiktok-shape';
           }
-          
+
           return {
             detected: true,
             type: captchaType,
@@ -103,7 +113,7 @@ export class SadCaptchaSolver implements ICaptchaSolver {
           };
         }
       }
-      
+
       // No captcha detected
       return {
         detected: false,
@@ -114,7 +124,7 @@ export class SadCaptchaSolver implements ICaptchaSolver {
       this.logger.error('Error detecting captcha:', {
         error: error instanceof Error ? error.message : String(error),
       });
-      
+
       return {
         detected: false,
         type: null,
@@ -133,7 +143,11 @@ export class SadCaptchaSolver implements ICaptchaSolver {
     page: Page,
     detectionResult: CaptchaDetectionResult,
   ): Promise<boolean> {
-    if (!detectionResult.detected || !detectionResult.element || !detectionResult.screenshotPath) {
+    if (
+      !detectionResult.detected ||
+      !detectionResult.element ||
+      !detectionResult.screenshotPath
+    ) {
       this.logger.info('No captcha to solve or missing required information');
       return false;
     }
@@ -197,9 +211,11 @@ export class SadCaptchaSolver implements ICaptchaSolver {
       if (!solution) {
         return false;
       }
+      this.logger.info('Captcha solution received', { solution });
 
       // Get element dimensions
       const boundingBox = await captchaElement.boundingBox();
+      this.logger.info('Captcha element dimensions', { boundingBox });
       if (!boundingBox) {
         this.logger.error('Could not get captcha element dimensions');
         return false;
@@ -216,10 +232,25 @@ export class SadCaptchaSolver implements ICaptchaSolver {
           y: boundingBox.height * solution.pointTwoProportionY,
         },
       ];
+      this.logger.info('Click points calculated', { clickPoints });
 
       // Click the points
       for (const point of clickPoints) {
+        await page.waitForTimeout(
+          this.browserHelperService.randomBetween(1000, 3000),
+        );
+
         this.logger.info('Clicking point:', { x: point.x, y: point.y });
+        await page.mouse.move(
+          boundingBox.x +
+            point.x +
+            this.browserHelperService.randomBetween(-5, 5),
+          boundingBox.y +
+            point.y +
+            this.browserHelperService.randomBetween(-5, 5),
+          { steps: this.browserHelperService.randomBetween(5, 10) },
+        );
+        await page.waitForTimeout(500);
         await captchaElement.click({
           position: {
             x: point.x,
@@ -231,13 +262,95 @@ export class SadCaptchaSolver implements ICaptchaSolver {
       }
 
       this.logger.info('Captcha solution applied');
-      return true;
+
+      // Attempt to click the confirmation button if it exists
+      return await this.attemptCaptchaConfirmation(page, captchaImageSelector);
     } catch (error) {
       this.logger.error('Error solving captcha:', {
         error: error instanceof Error ? error.message : String(error),
       });
       return false;
     }
+  }
+
+  /**
+   * Attempts to click the CAPTCHA confirm button and verify success
+   * @param page - Playwright page object
+   * @param selector - CAPTCHA selector to check for removal
+   * @returns Promise<boolean> - Whether verification was successful
+   */
+  private async attemptCaptchaConfirmation(
+    page: Page,
+    selector: string,
+  ): Promise<boolean> {
+    const confirmSelectors = [
+      'div.verify-captcha-submit-button',
+      'button.verify-captcha-submit',
+      'button:has-text("Submit")',
+      'button:has-text("Verify")',
+      'div:has-text("Confirm")',
+    ];
+
+    for (const confirmSelector of confirmSelectors) {
+      const confirmButton = await page.$(confirmSelector).catch(() => null);
+      if (!confirmButton) continue;
+
+      const isVisible = await confirmButton.isVisible().catch(() => false);
+      const isEnabled = await confirmButton.isEnabled().catch(() => false);
+
+      if (isVisible && isEnabled) {
+        this.logger.info(
+          `CAPTCHA solved, clicking confirm button (${confirmSelector})...`,
+        );
+        try {
+          await confirmButton.click();
+          await page.waitForTimeout(2000);
+
+          // First check if email verification appeared
+          if (await this.checkEmailVerification(page)) {
+            this.logger.info('Email verification form detected after CAPTCHA');
+            return true;
+          }
+
+          // Then check if CAPTCHA is gone
+          const captchaStillPresent = await page.$(selector).catch(() => null);
+          if (!captchaStillPresent) {
+            this.logger.info('CAPTCHA verification completed successfully');
+            return true;
+          }
+        } catch (error) {
+          this.logger.warning('Failed to click confirm button:', {
+            selector: confirmSelector,
+            error: (error as Error).message,
+          });
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Check for email verification form
+   * @param page - Playwright page object
+   * @returns Promise<boolean> - Whether email verification form is present
+   */
+  private async checkEmailVerification(page: Page): Promise<boolean> {
+    const emailSelectors = [
+      'div.tiktokads-common-login-code-form-item',
+      '#TikTok_Ads_SSO_Login_Code_FormItem',
+      'input[name="code"][placeholder="Enter verification code"]',
+    ];
+
+    for (const selector of emailSelectors) {
+      const element = await page.$(selector).catch(() => null);
+      if (element) {
+        const isVisible = await element.isVisible().catch(() => false);
+        if (isVisible) return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -249,7 +362,7 @@ export class SadCaptchaSolver implements ICaptchaSolver {
     imageBase64: string,
   ): Promise<SadCaptchaResponse | null> {
     try {
-      const response = await axios.post(
+      const response = await axios.post<SadCaptchaResponse>(
         `${this.baseUrl}/shapes`,
         { imageB64: imageBase64 },
         {

@@ -14,11 +14,11 @@ import {
 import { AuthCredentials, Session } from '../models';
 import { AuthenticationPipeline } from './AuthenticationPipeline';
 import {
+  CaptchaVerificationStep,
   CookieConsentStep,
   FillLoginFormStep,
   LoginButtonStep,
   SelectPhoneEmailLoginStep,
-  SolveCaptchaStep,
   SubmitLoginFormStep,
 } from './steps';
 import { BrowserHelperService } from '../services';
@@ -83,7 +83,7 @@ export class TikTokAuthenticator implements IAuthenticator {
       .addStep(new SelectPhoneEmailLoginStep(logger))
       .addStep(new FillLoginFormStep(logger))
       .addStep(new SubmitLoginFormStep(logger))
-      .addStep(new SolveCaptchaStep(logger, captchaSolver));
+      .addStep(new CaptchaVerificationStep(logger, captchaSolver));
   }
 
   async runAuthenticator(credentials: AuthCredentials): Promise<void> {

@@ -2,8 +2,7 @@ import { Log } from 'crawlee';
 import * as dotenv from 'dotenv';
 import { AuthenticatorFactory } from './auth/factories/AuthenticatorFactory';
 import { AuthCredentials } from './auth/models/AuthCredentials';
-import { Env } from '../lib/Env';
-
+import { Env } from '@lib/Env';
 // Load environment variables
 dotenv.config();
 
@@ -14,8 +13,8 @@ async function runAuthenticator() {
   const logger = new Log({ prefix: 'AuthRunner' });
   logger.info('Starting TikTok authenticator runner');
   const headless = Env.HEADLESS;
-  logger.info('Headless mode: ' + headless);
-
+  logger.info('Headless mode:', { mode: headless });
+  logger.info('Captcha resolution mode:', { mode: Env.CAPTCHA_RESOLVE_MODE });
   try {
     // Create authenticator using the factory
     const authenticator = AuthenticatorFactory.createTikTokAuthenticator(

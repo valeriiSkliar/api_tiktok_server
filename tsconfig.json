@@ -12,6 +12,10 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@lib/*": ["lib/*"],
+      "@src/*": ["src/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
@@ -20,5 +24,9 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
   },
-  "exclude": ["base-scrapper_implementation", "base-scrapper_implementation/**/*", "test"]
+  "exclude": [
+    "base-scrapper_implementation",
+    "base-scrapper_implementation/**/*",
+    "test"
+  ]
 }
