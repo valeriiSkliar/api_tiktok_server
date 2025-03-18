@@ -1,10 +1,26 @@
+// src/auth-runner.ts
 import { Log } from 'crawlee';
 import * as dotenv from 'dotenv';
+import * as fs from 'fs-extra';
 import { AuthenticatorFactory } from './auth/factories/AuthenticatorFactory';
 import { AuthCredentials } from './auth/models/AuthCredentials';
 import { Env } from '@lib/Env';
+
 // Load environment variables
 dotenv.config();
+
+/**
+ * Ensure directory exists
+ * @param dirPath Directory path to create
+ */
+async function ensureDirectoryExists(dirPath: string): Promise<void> {
+  try {
+    await fs.ensureDir(dirPath);
+  } catch (error) {
+    console.error(`Error creating directory ${dirPath}:`, error);
+    throw error;
+  }
+}
 
 /**
  * Main function to run the authenticator
@@ -15,13 +31,18 @@ async function runAuthenticator() {
   const headless = Env.HEADLESS;
   logger.info('Headless mode:', { mode: headless });
   logger.info('Captcha resolution mode:', { mode: Env.CAPTCHA_RESOLVE_MODE });
+
+  // Ensure sessions directory exists
+  const sessionStoragePath =
+    process.env.SESSION_STORAGE_PATH || './storage/sessions';
+  await ensureDirectoryExists(sessionStoragePath);
+
   try {
     // Create authenticator using the factory
     const authenticator = AuthenticatorFactory.createTikTokAuthenticator(
       logger,
       {
-        sessionStoragePath:
-          process.env.SESSION_STORAGE_PATH || './storage/sessions',
+        sessionStoragePath,
         captchaSolverApiKey: process.env.SAD_CAPTCHA_API_KEY || '',
         emailApiBaseUrl:
           process.env.EMAIL_API_BASE_URL || 'http://localhost:3000',
@@ -52,30 +73,22 @@ async function runAuthenticator() {
 
     await authenticator.runAuthenticator(credentials);
 
-    // const result = await authenticator.login(credentials);
-
-    // if (result.success) {
-    //   logger.info('Login successful', {
-    //     sessionId: result.session?.id,
-    //   });
-    // } // Added the missing closing bracket here
-
     // Set up cleanup on process termination
-    // process.on('SIGINT', () => {
-    //   logger.info('Received SIGINT, stopping authenticator...');
-    //   // Dispose the authenticator to clean up resources
-    //   void authenticator.dispose().then(() => {
-    //     process.exit(0);
-    //   });
-    // });
+    process.on('SIGINT', () => {
+      logger.info('Received SIGINT, stopping authenticator...');
+      // Dispose the authenticator to clean up resources
+      void authenticator.dispose().then(() => {
+        process.exit(0);
+      });
+    });
 
-    // process.on('SIGTERM', () => {
-    //   logger.info('Received SIGTERM, stopping authenticator...');
-    //   // Dispose the authenticator to clean up resources
-    //   void authenticator.dispose().then(() => {
-    //     process.exit(0);
-    //   });
-    // });
+    process.on('SIGTERM', () => {
+      logger.info('Received SIGTERM, stopping authenticator...');
+      // Dispose the authenticator to clean up resources
+      void authenticator.dispose().then(() => {
+        process.exit(0);
+      });
+    });
   } catch (error: unknown) {
     logger.error('Error in authenticator runner', {
       error: error instanceof Error ? error.message : String(error),

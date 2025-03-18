@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/require-await */
+// src/auth/implementations/TikTokAuthenticator.ts (обновлённый)
+
 import {
   createPlaywrightRouter,
   Log,
@@ -24,6 +26,9 @@ import {
 import { BrowserHelperService } from '../services';
 import { EmailService } from '../../email/services/EmailService';
 import { EmailVerificationStep } from './steps/EmailVerificationStep';
+import * as path from 'path';
+import { SessionRestoreService } from '../services';
+
 /**
  * TikTok authenticator implementation
  * Handles the authentication process for TikTok
@@ -36,6 +41,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   private captchaSolver: ICaptchaSolver;
   private emailVerifier: IEmailVerificationHandler;
   private sessionManager: ISessionManager;
+  private sessionRestoreService: SessionRestoreService;
   private currentSession: Session | null = null;
   private crawlerOptions: PlaywrightCrawlerOptions;
   private authPipeline: AuthenticationPipeline;
@@ -43,6 +49,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   private emailService: EmailService;
   private loginUrl =
     'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en';
+  private sessionStoragePath = 'storage/sessions';
 
   /**
    * Creates a new TikTokAuthenticator instance
@@ -52,7 +59,6 @@ export class TikTokAuthenticator implements IAuthenticator {
    * @param sessionManager Session manager implementation
    * @param crawlerOptions Options for the PlaywrightCrawler
    * @param emailService Email service implementation
-   *
    */
   constructor(
     logger: Log,
@@ -69,6 +75,7 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.emailVerifier = emailVerifier;
     this.sessionManager = sessionManager;
     this.emailService = emailService;
+    this.sessionRestoreService = new SessionRestoreService(logger);
     this.router = createPlaywrightRouter();
 
     // Initialize browser helper service
@@ -109,9 +116,99 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.logger.info(
       'Initializing PlaywrightCrawler for TikTok authentication',
     );
+
+    // Define the session state path based on credentials
+    const sessionStateFilename = `tiktok_${credentials.email.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+    const sessionStatePath = path.join(
+      this.sessionStoragePath,
+      sessionStateFilename,
+    );
+
     this.router.addDefaultHandler(async (ctx) => {
-      // ctx.log.info('addDefaultHandler');
-      await this.authPipeline.execute(ctx.page, credentials);
+      try {
+        this.logger.info('Starting authentication process');
+
+        // Attempt to restore session
+        const sessionRestored = await this.sessionRestoreService.restoreSession(
+          ctx.page,
+          sessionStatePath,
+        );
+
+        if (sessionRestored) {
+          this.logger.info('Successfully restored previous session!');
+          // Create a session object from the restored state
+          const state = await ctx.page.context().storageState();
+          this.currentSession = {
+            id: `tiktok_${credentials.email}_${Date.now()}`,
+            userId: credentials.email,
+            cookies: state.cookies,
+            headers: {
+              'User-Agent': await ctx.page.evaluate(() => navigator.userAgent),
+              'Accept-Language': 'en-US,en;q=0.9',
+              Accept:
+                'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            },
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+            lastUsedAt: new Date(),
+            proxyConfig: credentials.proxyConfig,
+          };
+
+          // Save the restored session via the session manager
+          await this.sessionManager.saveSession(this.currentSession);
+        } else {
+          this.logger.info(
+            'Session restoration failed or expired, proceeding with new login',
+          );
+          // Run the authentication pipeline if session restoration fails
+          await this.authPipeline.execute(ctx.page, credentials);
+
+          // Save the new session state after successful login
+          const isLoggedIn = await this.browserHelperService.isLoggedIn(
+            ctx.page,
+          );
+          if (isLoggedIn) {
+            await ctx.page.context().storageState({ path: sessionStatePath });
+            this.logger.info('New session state saved successfully');
+
+            // Create and save the new session
+            const state = await ctx.page.context().storageState();
+            this.currentSession = {
+              id: `tiktok_${credentials.email}_${Date.now()}`,
+              userId: credentials.email,
+              cookies: state.cookies,
+              headers: {
+                'User-Agent': await ctx.page.evaluate(
+                  () => navigator.userAgent,
+                ),
+                'Accept-Language': 'en-US,en;q=0.9',
+                Accept:
+                  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+              },
+              createdAt: new Date(),
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+              lastUsedAt: new Date(),
+              proxyConfig: credentials.proxyConfig,
+            };
+
+            await this.sessionManager.saveSession(this.currentSession);
+          } else {
+            this.logger.error(
+              'Login verification failed after authentication pipeline',
+            );
+          }
+        }
+      } catch (error) {
+        this.logger.error('Error during authentication process:', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+
+        // Take a screenshot to help debug the error
+        await ctx.page.screenshot({
+          path: `storage/screenshots/auth-error-${new Date().getTime()}.png`,
+        });
+      }
     });
 
     this.crawler = new PlaywrightCrawler({
@@ -202,5 +299,13 @@ export class TikTokAuthenticator implements IAuthenticator {
       await this.crawler.teardown();
       this.crawler = null;
     }
+  }
+
+  /**
+   * Set the session storage path
+   * @param path Path to store session files
+   */
+  setSessionStoragePath(path: string): void {
+    this.sessionStoragePath = path;
   }
 }

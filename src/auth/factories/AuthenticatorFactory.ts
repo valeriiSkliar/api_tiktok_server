@@ -1,3 +1,5 @@
+// src/auth/factories/AuthenticatorFactory.ts
+
 import { Log, PlaywrightCrawlerOptions } from 'crawlee';
 import {
   IAuthenticator,
@@ -66,8 +68,8 @@ export class AuthenticatorFactory {
     const prisma = new PrismaClient();
     const emailService = new EmailService(prisma, logger);
 
-    // Create and return the authenticator
-    return new TikTokAuthenticator(
+    // Create and set up the authenticator
+    const authenticator = new TikTokAuthenticator(
       logger,
       captchaSolver,
       emailVerifier,
@@ -75,6 +77,11 @@ export class AuthenticatorFactory {
       crawlerOptions,
       emailService,
     );
+
+    // Set the session storage path explicitly
+    authenticator.setSessionStoragePath(sessionStoragePath);
+
+    return authenticator;
   }
 
   /**
