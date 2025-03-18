@@ -13,6 +13,8 @@ import {
 } from '../implementations';
 import { EmailApiService } from '../services';
 import { Env } from '@lib/Env';
+import { EmailService } from '../../email/services/EmailService';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Factory for creating authenticator instances
@@ -60,6 +62,10 @@ export class AuthenticatorFactory {
       logger,
     );
 
+    // Create prisma client and email service
+    const prisma = new PrismaClient();
+    const emailService = new EmailService(prisma, logger);
+
     // Create and return the authenticator
     return new TikTokAuthenticator(
       logger,
@@ -67,6 +73,7 @@ export class AuthenticatorFactory {
       emailVerifier,
       sessionManager,
       crawlerOptions,
+      emailService,
     );
   }
 

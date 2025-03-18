@@ -22,7 +22,8 @@ import {
   SubmitLoginFormStep,
 } from './steps';
 import { BrowserHelperService } from '../services';
-
+import { EmailService } from '../../email/services/EmailService';
+import { EmailVerificationStep } from './steps/EmailVerificationStep';
 /**
  * TikTok authenticator implementation
  * Handles the authentication process for TikTok
@@ -39,6 +40,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   private crawlerOptions: PlaywrightCrawlerOptions;
   private authPipeline: AuthenticationPipeline;
   private browserHelperService: BrowserHelperService;
+  private emailService: EmailService;
   private loginUrl =
     'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en';
 
@@ -49,6 +51,7 @@ export class TikTokAuthenticator implements IAuthenticator {
    * @param emailVerifier Email verification handler implementation
    * @param sessionManager Session manager implementation
    * @param crawlerOptions Options for the PlaywrightCrawler
+   * @param emailService Email service implementation
    *
    */
   constructor(
@@ -57,6 +60,7 @@ export class TikTokAuthenticator implements IAuthenticator {
     emailVerifier: IEmailVerificationHandler,
     sessionManager: ISessionManager,
     crawlerOptions: Partial<PlaywrightCrawlerOptions> = {},
+    emailService: EmailService,
   ) {
     this.authPipeline = new AuthenticationPipeline(logger);
     this.logger = logger;
@@ -64,6 +68,7 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.captchaSolver = captchaSolver;
     this.emailVerifier = emailVerifier;
     this.sessionManager = sessionManager;
+    this.emailService = emailService;
     this.router = createPlaywrightRouter();
 
     // Initialize browser helper service
@@ -83,7 +88,8 @@ export class TikTokAuthenticator implements IAuthenticator {
       .addStep(new SelectPhoneEmailLoginStep(logger))
       .addStep(new FillLoginFormStep(logger))
       .addStep(new SubmitLoginFormStep(logger))
-      .addStep(new CaptchaVerificationStep(logger, captchaSolver));
+      .addStep(new CaptchaVerificationStep(logger, captchaSolver))
+      .addStep(new EmailVerificationStep(logger, emailService));
   }
 
   async runAuthenticator(credentials: AuthCredentials): Promise<void> {
