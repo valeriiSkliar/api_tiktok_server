@@ -74,21 +74,21 @@ async function runAuthenticator() {
     await authenticator.runAuthenticator(credentials);
 
     // Set up cleanup on process termination
-    process.on('SIGINT', () => {
-      logger.info('Received SIGINT, stopping authenticator...');
-      // Dispose the authenticator to clean up resources
-      void authenticator.dispose().then(() => {
-        process.exit(0);
-      });
-    });
+    // process.on('SIGINT', () => {
+    //   logger.info('Received SIGINT, stopping authenticator...');
+    //   // Dispose the authenticator to clean up resources
+    //   void authenticator.dispose().then(() => {
+    //     process.exit(0);
+    //   });
+    // });
 
-    process.on('SIGTERM', () => {
-      logger.info('Received SIGTERM, stopping authenticator...');
-      // Dispose the authenticator to clean up resources
-      void authenticator.dispose().then(() => {
-        process.exit(0);
-      });
-    });
+    // process.on('SIGTERM', () => {
+    //   logger.info('Received SIGTERM, stopping authenticator...');
+    //   // Dispose the authenticator to clean up resources
+    //   void authenticator.dispose().then(() => {
+    //     process.exit(0);
+    //   });
+    // });
   } catch (error: unknown) {
     logger.error('Error in authenticator runner', {
       error: error instanceof Error ? error.message : String(error),
