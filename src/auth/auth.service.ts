@@ -4,7 +4,7 @@ import { chromium, Browser, Page } from 'playwright';
 import { Log } from 'crawlee';
 import { AuthenticatorFactory } from './factories';
 import { IAuthenticator } from './interfaces';
-import { AuthCredentials, AuthResult } from './models';
+import { AuthCredentials } from './models';
 
 @Injectable()
 export class AuthService implements OnModuleInit, OnModuleDestroy {
@@ -35,7 +35,6 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
       // Create authenticator
       if (this.page) {
         this.authenticator = AuthenticatorFactory.createTikTokAuthenticator(
-          this.page,
           this.logger,
           {
             sessionStoragePath: this.configService.get<string>(
@@ -95,26 +94,26 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
    * @param credentials Authentication credentials
    * @returns Authentication result
    */
-  async login(credentials: AuthCredentials): Promise<AuthResult> {
+  async login(credentials: AuthCredentials): Promise<void> {
     if (!this.authenticator) {
       this.logger.error('Authenticator not initialized');
-      return { success: false, error: 'Authenticator not initialized' };
+      // return { success: false, error: 'Authenticator not initialized' };
     }
 
     try {
       this.logger.info('Attempting to login to TikTok', {
         email: credentials.email,
       });
-      const result = await this.authenticator.login(credentials);
+      const result = await this.authenticator?.runAuthenticator(credentials);
       return result;
     } catch (error) {
       this.logger.error('Error during login', {
         error: error instanceof Error ? error.message : String(error),
       });
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      // return {
+      //   success: false,
+      //   error: error instanceof Error ? error.message : String(error),
+      // };
     }
   }
 
