@@ -16,54 +16,72 @@ datasource db {
 //=============================================================================
 // Authentication & Session Models
 //=============================================================================
+model Session {
+  id                    Int           @id @default(autoincrement())
+  tiktokAccountId       Int
+  proxyId               Int
+  apiConfigId           Int
+  sessionData           Json
+  createdAt             DateTime      @default(now())
+  expiresAt             DateTime
+  lastActivityTimestamp DateTime?
+  isValid               Boolean       @default(true)
+  status                String
 
-// Модель для хранения состояний авторизации
-model AuthSession {
-  id            String    @id @default(uuid())
-  email         String    
-  storageState  Json      // Полное состояние браузера (cookies, localStorage и т.д.)
-  proxyId       String?   // Связь с прокси, если используется
-  createdAt     DateTime  @default(now())
-  expiresAt     DateTime  // Дата истечения сессии
-  lastUsedAt    DateTime  @default(now()) // Последнее использование
-  lastRefreshAt DateTime? // Последнее обновление сессии
-  status        AuthSessionStatus @default(ACTIVE)
-  userAgent     String?   // User-Agent, который использовался
-  instanceId    String?   // ID экземпляра микросервиса
-  refreshCount  Int       @default(0) // Счетчик обновлений
-  failCount     Int       @default(0) // Счетчик ошибок
-  metadata      Json?     // Дополнительные метаданные
-  
-  // Индексы для быстрого поиска
-  @@index([email])
-  @@index([status, expiresAt])
+  // Relations
+  tiktokAccount        TikTokAccount @relation("has", fields: [tiktokAccountId], references: [id])
+  proxy                Proxy         @relation("used_by", fields: [proxyId], references: [id])
+  apiConfig            ApiConfiguration @relation("applies_to", fields: [apiConfigId], references: [id])
+  requests             Request[]      @relation("processes")
+
+  @@index([isValid])
+  @@index([status])
+  @@index([lastActivityTimestamp])
+  @@index([tiktokAccountId])
   @@index([proxyId])
-  @@index([lastUsedAt])
+  @@index([apiConfigId])
 }
 
-// Статусы состояния авторизации
-enum AuthSessionStatus {
-  ACTIVE      // Активная сессия, готова к использованию
-  EXPIRED     // Срок действия истек
-  INVALID     // Стала недействительной (была обнаружена разлогинизация)
-  REFRESHING  // В процессе обновления
-  SUSPENDED   // Временно приостановлена (например, при лимитах)
-  ERROR       // Ошибка в сессии
+model Cache {
+  id                    Int           @id @default(autoincrement())
+  requestHash           String
+  responseData          Json
+  createdAt             DateTime      @default(now())
+  expiresAt             DateTime
+  hitCount              Int
+  lastAccessedAt        DateTime?
+  requestId             Int?          @unique  // Foreign key for one-to-one relation
+
+  // Relations
+  request              Request?       @relation("stores_result_of", fields: [requestId], references: [id])
+
+  @@index([requestHash])
+  @@index([expiresAt])
+  @@index([lastAccessedAt])
 }
 
-// Модель для хранения данных аутентификации
-model AuthData {
-  id                String         @id @default(uuid())
-  session          RequestSession  @relation(fields: [sessionId], references: [id])
-  sessionId        String         @unique
-  csrfToken        String         @default("")
-  cookies          String         @db.Text
-  userSign         String         @default("")
-  timestamp        String         @default("")
-  additionalHeaders String?        @db.Text
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+model Request {
+  id                    Int           @id @default(autoincrement())
+  externalRequestId     String
+  requestType           String
+  parameters            Json
+  createdAt             DateTime      @default(now())
+  processedAt           DateTime?
+  status                String
+  sessionId             Int
+  responseData          Json?
+  errorDetails          String?
+  priority              Int
+  retryCount            Int
+  webhookUrl            String?
 
+  // Relations
+  session              Session        @relation("processes", fields: [sessionId], references: [id])
+  cache                Cache?         @relation("stores_result_of")
+  activities           ActivityLog[]  @relation("generates")
+
+  @@index([status])
+  @@index([processedAt])
   @@index([sessionId])
 }
 
@@ -73,103 +91,99 @@ model AuthData {
 
 // Модель для хранения аккаунтов TikTok
 model TikTokAccount {
-  id              String         @id @default(uuid())
-  username        String         @unique
-  email           String         @unique
-  isActive        Boolean        @default(true)
-  lastAuthSuccess DateTime?      @default(now())
-  lastAuthAttempt DateTime?      @default(now())
-  authFailCount   Int           @default(0)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  emailAccounts   EmailAccount[]
-  requestSessions RequestSession[]
+  id                    Int           @id @default(autoincrement())
+  username              String        @unique
+  password              String
+  emailId               Int
+  status                String
+  lastLoginTimestamp    DateTime?
+  creationDate          DateTime      @default(now())
+  notes                 String?       @db.Text
+  verificationRequired  Boolean       @default(false)
+  
+  // Additional useful fields from existing model
+  isActive             Boolean       @default(true)
+  lastAuthSuccess      DateTime?     @default(now())
+  updatedAt            DateTime      @updatedAt
+  
+  // Relations
+  emailAccount         Email         @relation(fields: [emailId], references: [id])
+  activities           ActivityLog[] @relation("tiktok_has_activities")
+  sessions            Session[]     @relation("has")
 
   @@index([isActive])
   @@index([username])
+  @@index([emailId])
 }
 
-// Модель для хранения учетных записей электронной почты
-model EmailAccount {
-  id              String         @id @default(uuid())
-  email           String         @unique
-  password        String         @default("")
-  server          String         @default("")
-  port            Int           @default(0)
-  protocol        String         @default("")
-  isActive        Boolean        @default(true)
-  tiktokAccount   TikTokAccount? @relation(fields: [tiktokAccountId], references: [id])
-  tiktokAccountId String?        // Внешний ключ для связи с аккаунтом TikTok
-  lastChecked     DateTime?      @default(now())
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+model Email {
+  id                  Int           @id @default(autoincrement())
+  emailAddress        String        @unique
+  provider            String
+  connectionDetails   Json?
+  username            String
+  password            String
+  status              String
+  lastCheckTimestamp  DateTime?
+  isAssociated        Boolean       @default(false)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  @@index([isActive])
-  @@index([tiktokAccountId])
+  // Relations
+  activities         ActivityLog[]   @relation("email_has_activities")
+  TikTokAccount      TikTokAccount[]
+
+  @@index([isAssociated])
+  @@index([status])
+  @@index([lastCheckTimestamp])
 }
+
 
 //=============================================================================
 // Infrastructure Models
 //=============================================================================
+model ApiConfiguration {
+  id                    Int           @id @default(autoincrement())
+  apiVersion            String
+  parameters            Json
+  updatedAt             DateTime      @updatedAt
+  isActive              Boolean       @default(true)
+  updateFrequency       Int
 
-// Модель для хранения прокси-серверов
-model ProxyServer {
-  id            String           @id @default(uuid())
-  host          String
-  port          Int
-  username      String?
-  password      String?
-  protocol      String    // http, https, socks4, socks5
-  isActive      Boolean   @default(true)
-  lastUsed      DateTime?
-  successRate   Int       @default(0)
-  failCount     Int       @default(0)
-  region        String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  requestSessions RequestSession[]
-  
-  // Индексы
-  @@index([isActive])
-  @@index([lastUsed])
-  @@index([region])
-  @@unique([host, port, username]) // Уникальность комбинации
+  // Relations
+  sessions             Session[]     @relation("applies_to")
+
+}
+
+model Proxy {
+  id                    Int           @id @default(autoincrement())
+  address               String
+  port                  Int
+  username              String?
+  password              String?
+  proxyType             String
+  status                String
+  lastCheckTimestamp    DateTime?
+  successRate           Float
+  averageResponseTime   Int
+  country               String
+  provider              String
+  notes                 String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // Relations
+  sessions             Session[]     @relation("used_by")
+  activities           ActivityLog[] @relation("proxy_has_activities")
+
+  @@index([status])
+  @@index([lastCheckTimestamp])
 }
 
 //=============================================================================
 // Request Handling Models
 //=============================================================================
 
-// Модель для хранения сессий запросов
-model RequestSession {
-  id             String         @id @default(uuid())
-  endpoint       String
-  method         String
-  parameters     String         @db.Text
-  timestamp      DateTime       @default(now())
-  expiresAt      DateTime
-  isValid        Boolean        @default(true)
-  responseStatus Int?
-  proxy          ProxyServer?   @relation(fields: [proxyId], references: [id])
-  proxyId        String?
-  account        TikTokAccount? @relation(fields: [accountId], references: [id])
-  accountId      String?
-  authData       AuthData?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  @@index([isValid])
-  @@index([proxyId])
-  @@index([accountId])
-  @@index([timestamp])
-}
-
-model SearchRequest {
-  id Int @id @default(autoincrement())
-  query Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-}
 
 //=============================================================================
 // Email Verification Models
@@ -178,6 +192,8 @@ model SearchRequest {
 model EmailVerificationCode {
   id           Int      @id @default(autoincrement())
   code         String
+  emailId     Int
+  tiktokAccountId Int
   messageId    String
   senderEmail  String
   receivedAt   DateTime @default(now())
@@ -195,4 +211,69 @@ model EmailVerificationCode {
 enum EmailVerificationStatus {
   UNUSED
   USED
+}
+
+
+//=============================================================================
+// Activity Logging Models
+//=============================================================================
+
+model ActivityLog {
+  id        Int        @id @default(autoincrement())
+  timestamp DateTime   @default(now())
+  entityType String
+  entityId   Int
+  actionType String
+  details    Json?
+  severity   String
+  relatedRequestId Int?
+  emailId    Int?     // Foreign key for Email relation
+  tiktokId   Int?     // Foreign key for TikTokAccount relation
+  requestId  Int?     // Foreign key for Request relation
+  proxyId    Int?     // Foreign key for Proxy relation
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relations with unique constraint names
+  email          Email?          @relation("email_has_activities", fields: [emailId], references: [id])
+  tiktokAccount  TikTokAccount?  @relation("tiktok_has_activities", fields: [tiktokId], references: [id])
+  request        Request?        @relation("generates", fields: [requestId], references: [id])
+  proxy          Proxy?          @relation("proxy_has_activities", fields: [proxyId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([relatedRequestId])
+  @@index([emailId])
+  @@index([tiktokId])
+  @@index([requestId])
+  @@index([proxyId])
+}
+
+
+//=============================================================================
+// Search Models
+//=============================================================================
+
+model SearchRequest {
+  id        Int        @id @default(autoincrement())
+  query     Json
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+//=============================================================================
+// Statistics Models
+//=============================================================================
+
+model Statistics {
+  id                    Int           @id @default(autoincrement())
+  date                  DateTime
+  requestCount          Int
+  successCount          Int
+  failureCount          Int
+  averageResponseTime   Float
+  cacheHitRate          Float
+  blockedSessionCount   Int
+  details               Json
+
+  @@index([date])
 }
