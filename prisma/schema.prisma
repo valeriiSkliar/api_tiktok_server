@@ -13,12 +13,167 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//=============================================================================
+// Authentication & Session Models
+//=============================================================================
+
+// Модель для хранения состояний авторизации
+model AuthSession {
+  id            String    @id @default(uuid())
+  email         String    
+  storageState  Json      // Полное состояние браузера (cookies, localStorage и т.д.)
+  proxyId       String?   // Связь с прокси, если используется
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime  // Дата истечения сессии
+  lastUsedAt    DateTime  @default(now()) // Последнее использование
+  lastRefreshAt DateTime? // Последнее обновление сессии
+  status        AuthSessionStatus @default(ACTIVE)
+  userAgent     String?   // User-Agent, который использовался
+  instanceId    String?   // ID экземпляра микросервиса
+  refreshCount  Int       @default(0) // Счетчик обновлений
+  failCount     Int       @default(0) // Счетчик ошибок
+  metadata      Json?     // Дополнительные метаданные
+  
+  // Индексы для быстрого поиска
+  @@index([email])
+  @@index([status, expiresAt])
+  @@index([proxyId])
+  @@index([lastUsedAt])
+}
+
+// Статусы состояния авторизации
+enum AuthSessionStatus {
+  ACTIVE      // Активная сессия, готова к использованию
+  EXPIRED     // Срок действия истек
+  INVALID     // Стала недействительной (была обнаружена разлогинизация)
+  REFRESHING  // В процессе обновления
+  SUSPENDED   // Временно приостановлена (например, при лимитах)
+  ERROR       // Ошибка в сессии
+}
+
+// Модель для хранения данных аутентификации
+model AuthData {
+  id                String         @id @default(uuid())
+  session          RequestSession  @relation(fields: [sessionId], references: [id])
+  sessionId        String         @unique
+  csrfToken        String         @default("")
+  cookies          String         @db.Text
+  userSign         String         @default("")
+  timestamp        String         @default("")
+  additionalHeaders String?        @db.Text
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([sessionId])
+}
+
+//=============================================================================
+// Account Management Models
+//=============================================================================
+
+// Модель для хранения аккаунтов TikTok
+model TikTokAccount {
+  id              String         @id @default(uuid())
+  username        String         @unique
+  email           String         @unique
+  isActive        Boolean        @default(true)
+  lastAuthSuccess DateTime?      @default(now())
+  lastAuthAttempt DateTime?      @default(now())
+  authFailCount   Int           @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  emailAccounts   EmailAccount[]
+  requestSessions RequestSession[]
+
+  @@index([isActive])
+  @@index([username])
+}
+
+// Модель для хранения учетных записей электронной почты
+model EmailAccount {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  password        String         @default("")
+  server          String         @default("")
+  port            Int           @default(0)
+  protocol        String         @default("")
+  isActive        Boolean        @default(true)
+  tiktokAccount   TikTokAccount? @relation(fields: [tiktokAccountId], references: [id])
+  tiktokAccountId String?        // Внешний ключ для связи с аккаунтом TikTok
+  lastChecked     DateTime?      @default(now())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([isActive])
+  @@index([tiktokAccountId])
+}
+
+//=============================================================================
+// Infrastructure Models
+//=============================================================================
+
+// Модель для хранения прокси-серверов
+model ProxyServer {
+  id            String           @id @default(uuid())
+  host          String
+  port          Int
+  username      String?
+  password      String?
+  protocol      String    // http, https, socks4, socks5
+  isActive      Boolean   @default(true)
+  lastUsed      DateTime?
+  successRate   Int       @default(0)
+  failCount     Int       @default(0)
+  region        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  requestSessions RequestSession[]
+  
+  // Индексы
+  @@index([isActive])
+  @@index([lastUsed])
+  @@index([region])
+  @@unique([host, port, username]) // Уникальность комбинации
+}
+
+//=============================================================================
+// Request Handling Models
+//=============================================================================
+
+// Модель для хранения сессий запросов
+model RequestSession {
+  id             String         @id @default(uuid())
+  endpoint       String
+  method         String
+  parameters     String         @db.Text
+  timestamp      DateTime       @default(now())
+  expiresAt      DateTime
+  isValid        Boolean        @default(true)
+  responseStatus Int?
+  proxy          ProxyServer?   @relation(fields: [proxyId], references: [id])
+  proxyId        String?
+  account        TikTokAccount? @relation(fields: [accountId], references: [id])
+  accountId      String?
+  authData       AuthData?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([isValid])
+  @@index([proxyId])
+  @@index([accountId])
+  @@index([timestamp])
+}
+
 model SearchRequest {
   id Int @id @default(autoincrement())
   query Json
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 }
+
+//=============================================================================
+// Email Verification Models
+//=============================================================================
 
 model EmailVerificationCode {
   id           Int      @id @default(autoincrement())
