@@ -14,7 +14,6 @@ export class TikTokSearchService {
         'https://ads.tiktok.com/creative_radar_api/v1/top_ads/v2/list?period=30&page=1&limit=20&order_by=like';
       const url = new URL(baseUrl);
       // url.searchParams.set('keyword', keyword);
-      console.log(url.toString());
       const headers = {
         accept: 'application/json, text/plain, */*',
         cookie:

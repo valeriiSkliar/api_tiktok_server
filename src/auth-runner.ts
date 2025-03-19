@@ -25,7 +25,8 @@ async function ensureDirectoryExists(dirPath: string): Promise<void> {
 /**
  * Main function to run the authenticator
  */
-async function runAuthenticator() {
+async function runAuthenticator(emailAccountId: string) {
+  console.log('Running authenticator for email account:', emailAccountId);
   const logger = new Log({ prefix: 'AuthRunner' });
   logger.info('Starting TikTok authenticator runner');
   const headless = Env.HEADLESS;
@@ -44,8 +45,6 @@ async function runAuthenticator() {
       {
         sessionStoragePath,
         captchaSolverApiKey: process.env.SAD_CAPTCHA_API_KEY || '',
-        emailApiBaseUrl:
-          process.env.EMAIL_API_BASE_URL || 'http://localhost:3000',
         crawlerOptions: {
           headless,
         },
@@ -98,7 +97,7 @@ async function runAuthenticator() {
 }
 
 // Run the authenticator
-runAuthenticator().catch((error: unknown) => {
+runAuthenticator('1').catch((error: unknown) => {
   console.error('Unhandled error in runAuthenticator:', error);
   process.exit(1);
 });

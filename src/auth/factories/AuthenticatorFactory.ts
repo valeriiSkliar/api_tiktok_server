@@ -35,6 +35,7 @@ export class AuthenticatorFactory {
       captchaSolverApiKey?: string;
       emailApiBaseUrl?: string;
       crawlerOptions?: Partial<PlaywrightCrawlerOptions>;
+      emailAccountId?: string;
     } = {},
   ): IAuthenticator {
     // Set default options
