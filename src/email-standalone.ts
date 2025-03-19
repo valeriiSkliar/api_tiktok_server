@@ -152,7 +152,8 @@ async function testConnection() {
 async function getLatestCode() {
   logger.info('Retrieving latest verification code...');
 
-  const verificationCode = await emailService.getLatestVerificationCode();
+  // TODO: Replace hardcoded email ID with a proper value
+  const verificationCode = await emailService.getLatestVerificationCode(1, 1);
 
   if (verificationCode) {
     logger.info('Latest verification code:', {
@@ -165,7 +166,9 @@ async function getLatestCode() {
     });
     console.log('\n✅ Verification code retrieved!');
     console.log(`- Code: ${verificationCode.code}`);
-    console.log(`- Received at: ${verificationCode.received_at.toLocaleString()}`);
+    console.log(
+      `- Received at: ${verificationCode.received_at.toLocaleString()}`,
+    );
     console.log(`- Status: ${verificationCode.status}`);
     console.log(`- Message ID: ${verificationCode.message_id}`);
     console.log(`- Sender: ${verificationCode.sender_email}`);
@@ -264,7 +267,9 @@ async function getCodeStatus(code: string) {
     console.log(`- Code: ${codeStatus.code}`);
     console.log(`- Status: ${codeStatus.status}`);
     console.log(`- Received at: ${codeStatus.received_at.toLocaleString()}`);
-    console.log(`- Used at: ${codeStatus.used_at?.toLocaleString() || 'Not used'}`);
+    console.log(
+      `- Used at: ${codeStatus.used_at?.toLocaleString() || 'Not used'}`,
+    );
     console.log(`- Sender: ${codeStatus.sender_email}`);
   } else {
     logger.warning('Verification code not found', { code });

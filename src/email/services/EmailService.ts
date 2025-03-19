@@ -41,7 +41,10 @@ export class EmailService implements IEmailService {
     return new ImapFlow(this.imapConfig);
   }
 
-  async getLatestVerificationCode(emailId: number, tiktokAccountId: number): Promise<EmailVerificationCodeType | null> {
+  async getLatestVerificationCode(
+    emailId: number,
+    tiktokAccountId: number,
+  ): Promise<EmailVerificationCodeType | null> {
     const client = this.getImapClient();
     const senderEmail = 'creativecenter@tiktok-for-business.com';
     let latestMessage: FetchMessageObject | null = null;
@@ -89,7 +92,7 @@ export class EmailService implements IEmailService {
               email_body: emailBody,
               status: 'UNUSED',
               email_id: emailId,
-              tiktok_account_id: tiktokAccountId
+              tiktok_account_id: tiktokAccountId,
             },
           });
 
@@ -118,18 +121,20 @@ export class EmailService implements IEmailService {
         // First get the email and tiktok account IDs
         const emailRecord = await this.prisma.email.findFirst({
           where: { email_address: email },
-          include: { tiktok_account: true }
+          include: { tiktok_account: true },
         });
 
         if (!emailRecord || !emailRecord.tiktok_account) {
-          throw new Error(`No email record or TikTok account found for ${email}`);
+          throw new Error(
+            `No email record or TikTok account found for ${email}`,
+          );
         }
 
         const verificationCode = await this.getLatestVerificationCode(
           emailRecord.id,
-          emailRecord.tiktok_account.id
+          emailRecord.tiktok_account[0]?.id,
         );
-        
+
         if (verificationCode && verificationCode.status === 'UNUSED') {
           return verificationCode.code;
         }
@@ -206,7 +211,9 @@ export class EmailService implements IEmailService {
       return {
         success: false,
         message: 'Failed to connect to email server',
-        details: { error: error instanceof Error ? error.message : String(error) },
+        details: {
+          error: error instanceof Error ? error.message : String(error),
+        },
       };
     } finally {
       await client.logout();

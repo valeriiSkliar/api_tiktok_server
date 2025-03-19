@@ -1,0 +1,196 @@
+{
+  "info": {
+    "name": "TikTok API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "TikTok Accounts",
+      "item": [
+        {
+          "name": "Create TikTok Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"test_user\",\n  \"password\": \"test_password\",\n  \"emailAccountId\": 1,\n  \"status\": \"ACTIVE\",\n  \"verificationRequired\": true,\n  \"notes\": \"Test account\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tiktok-account",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiktok-account"]
+            }
+          }
+        },
+        {
+          "name": "Get All TikTok Accounts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tiktok-account",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiktok-account"]
+            }
+          }
+        },
+        {
+          "name": "Get TikTok Account by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tiktok-account/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiktok-account", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update TikTok Account",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INACTIVE\",\n  \"notes\": \"Updated test account\",\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tiktok-account/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiktok-account", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete TikTok Account",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/tiktok-account/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiktok-account", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Email Accounts",
+      "item": [
+        {
+          "name": "Create Email Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_address\": \"test@example.com\",\n  \"provider\": \"ukr.net\",\n  \"username\": \"test_user\",\n  \"password\": \"test_password\",\n  \"status\": \"ACTIVE\",\n  \"connection_details\": {\n    \"imap_host\": \"imap.ukr.net\",\n    \"imap_port\": 993,\n    \"smtp_host\": \"smtp.ukr.net\",\n    \"smtp_port\": 465\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/email",
+              "host": ["{{baseUrl}}"],
+              "path": ["email"]
+            }
+          }
+        },
+        {
+          "name": "Get All Email Accounts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/email",
+              "host": ["{{baseUrl}}"],
+              "path": ["email"]
+            }
+          }
+        },
+        {
+          "name": "Get Email Account by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/email/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["email", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Email Account",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INACTIVE\",\n  \"is_associated\": true,\n  \"connection_details\": {\n    \"imap_host\": \"new.imap.ukr.net\",\n    \"imap_port\": 993\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/email/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["email", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Email Account",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/email/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["email", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Latest Verification Code",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/email/1/verification-code?tiktokAccountId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["email", "1", "verification-code"],
+              "query": [
+                {
+                  "key": "tiktokAccountId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Verification Codes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/email/1/verification-codes",
+              "host": ["{{baseUrl}}"],
+              "path": ["email", "1", "verification-codes"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
