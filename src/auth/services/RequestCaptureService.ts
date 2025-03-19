@@ -1,216 +1,119 @@
-// // src/auth/services/RequestCaptureService.ts
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import fs from 'fs';
+import { Request, Page } from 'playwright';
+import { Log } from 'crawlee';
 
-// import { Injectable } from '@nestjs/common';
-// import { InjectRepository } from '@nestjs/typeorm';
-// import { Repository, LessThan } from 'typeorm';
-// import { v4 as uuidv4 } from 'uuid';
-// import { RequestSession } from '../entities/RequestSession.entity';
-// import { AuthData } from '../entities/AuthData.entity';
-// import { CookieDetail } from '../entities/CookieDetail.entity';
+interface CapturedRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  postData?: string;
+  timestamp: string;
+}
 
-// @Injectable()
-// export class RequestCaptureService {
-//   constructor(
-//     @InjectRepository(RequestSession)
-//     private requestSessionRepository: Repository<RequestSession>,
-//     @InjectRepository(AuthData)
-//     private authDataRepository: Repository<AuthData>,
-//     @InjectRepository(CookieDetail)
-//     private cookieDetailRepository: Repository<CookieDetail>,
-//   ) {}
+interface RequestInterceptionOptions {
+  /**
+   * Logger instance for logging messages.
+   */
+  log?: Log;
+  /**
+   * Callback to be called when first request is intercepted
+   */
+  onFirstRequest?: () => Promise<void>;
+}
 
-//   /**
-//    * Capture and store request data from an intercepted TikTok API request
-//    * @param requestData The captured request data
-//    */
-//   async captureRequest(requestData: any): Promise<RequestSession> {
-//     // Extract URL and parse endpoint
-//     const url = new URL(requestData.url);
-//     const endpoint = url.pathname;
+/**
+ * Service that handles request interception and capture for TikTok API endpoints
+ */
+export class IntegratedRequestCaptureService {
+  private static CAPTURES_DIR = 'storage/request-captures';
+  private isFirstRequest = true;
 
-//     // Extract query parameters
-//     const parameters = {};
-//     url.searchParams.forEach((value, key) => {
-//       parameters[key] = value;
-//     });
+  // Default API endpoints to intercept
+  private static DEFAULT_ENDPOINTS = [
+    '**/creative_radar_api/v1/top_ads/v2/list**',
+  ];
 
-//     // Create session entity with 1-hour expiration
-//     const now = new Date();
-//     const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // +1 hour
+  constructor(private log?: Log) {
+    this.ensureCapturesDirectory();
+  }
 
-//     const requestSession = this.requestSessionRepository.create({
-//       id: uuidv4(),
-//       endpoint,
-//       method: requestData.method,
-//       parameters: JSON.stringify(parameters),
-//       timestamp: now,
-//       expiresAt,
-//       isValid: true,
-//       responseStatus: 200, // Default if not available
-//       proxyId: null, // Will be set if proxy info is available
-//       accountId: null, // Will be set if account info is available
-//     });
+  /**
+   * Ensure the captures directory exists
+   */
+  private ensureCapturesDirectory() {
+    if (!fs.existsSync(IntegratedRequestCaptureService.CAPTURES_DIR)) {
+      fs.mkdirSync(IntegratedRequestCaptureService.CAPTURES_DIR, {
+        recursive: true,
+      });
+    }
+  }
 
-//     await this.requestSessionRepository.save(requestSession);
+  /**
+   * Capture and save request details
+   */
+  private async captureRequest(request: Request): Promise<void> {
+    const capturedRequest: CapturedRequest = {
+      url: request.url(),
+      method: request.method(),
+      headers: request.headers(),
+      postData: request.postData() || undefined,
+      timestamp: new Date().toISOString(),
+    };
 
-//     // Extract and store auth data
-//     if (requestData.headers) {
-//       const authData = this.authDataRepository.create({
-//         id: uuidv4(),
-//         sessionId: requestSession.id,
-//         csrfToken: requestData.headers['x-csrftoken'] || '',
-//         cookies: requestData.headers.cookie || '',
-//         userSign: requestData.headers['user-sign'] || null,
-//         timestamp: requestData.headers.timestamp || null,
-//         additionalHeaders: JSON.stringify(
-//           this.extractAuthHeaders(requestData.headers),
-//         ),
-//       });
+    const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}.json`;
+    const filepath = `${IntegratedRequestCaptureService.CAPTURES_DIR}/${filename}`;
 
-//       await this.authDataRepository.save(authData);
+    await fs.promises.writeFile(
+      filepath,
+      JSON.stringify(capturedRequest, null, 2),
+    );
 
-//       // Parse and store individual cookies for detailed analysis
-//       if (authData.cookies) {
-//         await this.parseCookies(authData.cookies, authData.id);
-//       }
-//     }
+    this.log?.debug('Request captured and saved', {
+      url: request.url(),
+      filepath,
+    });
+  }
 
-//     return requestSession;
-//   }
+  /**
+   * Sets up request interception for the specified page
+   */
+  async setupInterception(
+    page: Page,
+    options: RequestInterceptionOptions = {},
+  ): Promise<void> {
+    const { log = this.log, onFirstRequest } = options;
 
-//   /**
-//    * Extract authentication-related headers
-//    */
-//   private extractAuthHeaders(
-//     headers: Record<string, string>,
-//   ): Record<string, string> {
-//     const authHeaders = {};
-//     const authHeaderPrefixes = [
-//       'x-',
-//       'authorization',
-//       'cookie',
-//       'user-',
-//       'anonymous-',
-//       'passport_',
-//       'sso_',
-//       'sid_',
-//       'uid_',
-//       'sessionid',
-//       'msToken',
-//       'ttwid',
-//     ];
+    // Reset first request flag when setting up interception
+    this.isFirstRequest = true;
 
-//     Object.keys(headers).forEach((key) => {
-//       if (
-//         authHeaderPrefixes.some((prefix) =>
-//           key.toLowerCase().startsWith(prefix),
-//         )
-//       ) {
-//         authHeaders[key] = headers[key];
-//       }
-//     });
+    // Set up interception for the default endpoint
+    await page.route(
+      IntegratedRequestCaptureService.DEFAULT_ENDPOINTS[0],
+      async (route, request) => {
+        try {
+          await this.captureRequest(request);
 
-//     return authHeaders;
-//   }
+          if (this.isFirstRequest) {
+            this.isFirstRequest = false;
+            if (onFirstRequest) {
+              await onFirstRequest();
+            }
+            log?.info('First API request intercepted and captured', {
+              url: request.url(),
+            });
+          }
 
-//   /**
-//    * Parse individual cookies and store them
-//    */
-//   private async parseCookies(
-//     cookieString: string,
-//     authDataId: string,
-//   ): Promise<void> {
-//     const cookies = cookieString.split(';').map((cookie) => cookie.trim());
-
-//     for (const cookie of cookies) {
-//       const [name, ...valueParts] = cookie.split('=');
-//       const value = valueParts.join('='); // Rejoin in case value contains =
-
-//       if (name && value) {
-//         const cookieDetail = this.cookieDetailRepository.create({
-//           id: uuidv4(),
-//           authDataId,
-//           name: name.trim(),
-//           value: value.trim(),
-//           domain: null, // Could be extracted with more complex parsing
-//           path: null,
-//           expiresAt: null,
-//         });
-
-//         await this.cookieDetailRepository.save(cookieDetail);
-//       }
-//     }
-//   }
-
-//   /**
-//    * Retrieve valid request parameters for a specific endpoint
-//    * @param endpoint The API endpoint
-//    * @returns Valid request session or null if not found
-//    */
-//   async getValidRequestParameters(
-//     endpoint: string,
-//   ): Promise<RequestSession | null> {
-//     const now = new Date();
-
-//     // Find most recent valid session for the endpoint
-//     const validSession = await this.requestSessionRepository.findOne({
-//       where: {
-//         endpoint,
-//         expiresAt: LessThan(now),
-//         isValid: true,
-//       },
-//       order: {
-//         timestamp: 'DESC',
-//       },
-//       relations: ['authData'],
-//     });
-
-//     return validSession;
-//   }
-
-//   /**
-//    * Mark expired sessions as invalid
-//    * This should be run periodically (e.g., every minute)
-//    */
-//   async invalidateExpiredSessions(): Promise<void> {
-//     const now = new Date();
-
-//     await this.requestSessionRepository.update(
-//       {
-//         expiresAt: LessThan(now),
-//         isValid: true,
-//       },
-//       {
-//         isValid: false,
-//       },
-//     );
-//   }
-
-//   /**
-//    * Get statistics on request data
-//    */
-//   async getRequestDataStatistics(): Promise<any> {
-//     const now = new Date();
-//     const total = await this.requestSessionRepository.count();
-//     const valid = await this.requestSessionRepository.count({
-//       where: {
-//         expiresAt: LessThan(now),
-//         isValid: true,
-//       },
-//     });
-
-//     // Group by endpoint to see which endpoints we have data for
-//     const endpointStats = await this.requestSessionRepository
-//       .createQueryBuilder('session')
-//       .select('session.endpoint')
-//       .addSelect('COUNT(*)', 'count')
-//       .groupBy('session.endpoint')
-//       .getRawMany();
-
-//     return {
-//       totalRequests: total,
-//       validRequests: valid,
-//       endpointCoverage: endpointStats,
-//     };
-//   }
-// }
+          await route.continue();
+        } catch (error) {
+          log?.error('Error processing request:', {
+            error: (error as Error).message,
+          });
+          await route.continue();
+        }
+      },
+    );
+  }
+}

@@ -28,7 +28,7 @@ import { EmailService } from '../../email/services/EmailService';
 import { EmailVerificationStep } from './steps/EmailVerificationStep';
 import * as path from 'path';
 import { SessionRestoreService } from '../services';
-import { setupRequestInterception } from '../../../setupRequestInterception';
+import { IntegratedRequestCaptureService } from '../services/RequestCaptureService';
 
 /**
  * TikTok authenticator implementation
@@ -129,8 +129,11 @@ export class TikTokAuthenticator implements IAuthenticator {
       try {
         this.logger.info('Starting authentication process');
 
-        // Set up request interception before anything else
-        await setupRequestInterception(ctx.page, {
+        // Initialize and setup request capture service
+        const requestCaptureService = new IntegratedRequestCaptureService(
+          this.logger,
+        );
+        await requestCaptureService.setupInterception(ctx.page, {
           log: this.logger,
           onFirstRequest: async () => {
             // Dispose the authenticator on first request
