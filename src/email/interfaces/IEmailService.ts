@@ -1,17 +1,16 @@
-import type { EmailVerificationStatus } from '@prisma/client';
-
 export interface EmailVerificationCodeType {
   id: number;
+  email_id: number;
+  tiktok_account_id: number;
   code: string;
-  messageId: string;
-  senderEmail: string;
-  receivedAt: Date;
-  emailBody: string | null;
-  status: EmailVerificationStatus;
-  usedAt: Date | null;
-  additionalInfo: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  received_at: Date;
+  used_at: Date | null;
+  status: string;
+  message_id: string;
+  email_body: string | null;
+  sender_email: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface IEmailService {
@@ -27,9 +26,14 @@ export interface IEmailService {
 
   /**
    * Retrieves the latest verification code from emails
+   * @param emailId Email ID to retrieve code for
+   * @param tiktokAccountId TikTok account ID to retrieve code for
    * @returns Promise with the verification code or null if not found
    */
-  getLatestVerificationCode(): Promise<EmailVerificationCodeType | null>;
+  getLatestVerificationCode(
+    emailId: number,
+    tiktokAccountId: number,
+  ): Promise<EmailVerificationCodeType | null>;
 
   /**
    * Waits for a verification code to arrive for a specific email

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SearchRequestModule } from './search-request/search-request.module';
-import { TikTokSearchModule } from './tiktok-search/tiktok-search.module';
+import { TiktokAccountModule } from './tiktok-account/tiktok-account.module';
+import { EmailAccountModule } from './email-account/email-account.module';
 
 @Module({
-  imports: [SearchRequestModule, TikTokSearchModule],
+  imports: [TiktokAccountModule, EmailAccountModule],
   controllers: [AppController],
   providers: [AppService],
 })

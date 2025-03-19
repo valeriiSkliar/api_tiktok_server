@@ -7,6 +7,7 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  authSession: any;
   constructor() {
     super({
       datasources: {

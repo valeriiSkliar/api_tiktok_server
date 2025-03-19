@@ -5,7 +5,7 @@ import {
   FetchQueryObject,
   MailboxObject,
 } from 'imapflow';
-import { PrismaClient, EmailVerificationStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import {
   IEmailService,
   EmailVerificationCodeType,
@@ -41,7 +41,7 @@ export class EmailService implements IEmailService {
     return new ImapFlow(this.imapConfig);
   }
 
-  async getLatestVerificationCode(): Promise<EmailVerificationCodeType | null> {
+  async getLatestVerificationCode(emailId: number, tiktokAccountId: number): Promise<EmailVerificationCodeType | null> {
     const client = this.getImapClient();
     const senderEmail = 'creativecenter@tiktok-for-business.com';
     let latestMessage: FetchMessageObject | null = null;
@@ -80,20 +80,18 @@ export class EmailService implements IEmailService {
         const code = extractVerificationCode(emailBody);
 
         if (code) {
-          const savedCode = (await this.prisma.emailVerificationCode.create({
+          const savedCode = await this.prisma.verificationCode.create({
             data: {
               code,
-              messageId: latestMessage.uid.toString(),
-              senderEmail,
-              receivedAt: latestDate,
-              emailBody,
-              status: EmailVerificationStatus.UNUSED,
-              additionalInfo: JSON.stringify({
-                subject: latestMessage.envelope.subject,
-                from: latestMessage.envelope.from[0].address,
-              }),
+              message_id: latestMessage.uid.toString(),
+              sender_email: senderEmail,
+              received_at: latestDate,
+              email_body: emailBody,
+              status: 'UNUSED',
+              email_id: emailId,
+              tiktok_account_id: tiktokAccountId
             },
-          })) as EmailVerificationCodeType;
+          });
 
           return savedCode;
         }
@@ -117,11 +115,22 @@ export class EmailService implements IEmailService {
 
     while (Date.now() - startTime < timeoutMs) {
       try {
-        const verificationCode = await this.getLatestVerificationCode();
-        if (
-          verificationCode &&
-          verificationCode.status === EmailVerificationStatus.UNUSED
-        ) {
+        // First get the email and tiktok account IDs
+        const emailRecord = await this.prisma.email.findFirst({
+          where: { email_address: email },
+          include: { tiktok_account: true }
+        });
+
+        if (!emailRecord || !emailRecord.tiktok_account) {
+          throw new Error(`No email record or TikTok account found for ${email}`);
+        }
+
+        const verificationCode = await this.getLatestVerificationCode(
+          emailRecord.id,
+          emailRecord.tiktok_account.id
+        );
+        
+        if (verificationCode && verificationCode.status === 'UNUSED') {
           return verificationCode.code;
         }
       } catch (error) {
@@ -135,35 +144,31 @@ export class EmailService implements IEmailService {
   }
 
   async markCodeAsUsed(code: string): Promise<EmailVerificationCodeType> {
-    const result = (await this.prisma.emailVerificationCode.findFirst({
+    const result = await this.prisma.verificationCode.findFirst({
       where: { code },
-    })) as EmailVerificationCodeType;
+    });
 
     if (!result) {
       throw new Error(`Verification code ${code} not found`);
     }
 
-    return (await this.prisma.emailVerificationCode.update({
+    return await this.prisma.verificationCode.update({
       where: {
         id: result.id,
       },
       data: {
-        status: EmailVerificationStatus.USED,
-        usedAt: new Date(),
+        status: 'USED',
+        used_at: new Date(),
       },
-    })) as EmailVerificationCodeType;
+    });
   }
 
   async getCodeStatus(code: string): Promise<EmailVerificationCodeType | null> {
-    return (await this.prisma.emailVerificationCode.findFirst({
+    return await this.prisma.verificationCode.findFirst({
       where: { code },
-    })) as EmailVerificationCodeType;
+    });
   }
 
-  /**
-   * Tests the connection to the email server
-   * @returns Promise resolving to connection status details
-   */
   async testConnection(): Promise<{
     success: boolean;
     message: string;
@@ -175,7 +180,6 @@ export class EmailService implements IEmailService {
       this.logger.info('Testing connection to IMAP server...');
       await client.connect();
 
-      // Try to open the INBOX to verify full connection capabilities
       const lock = await client.getMailboxLock('INBOX');
       try {
         const mailbox = client.mailbox as MailboxObject | null;
@@ -199,26 +203,13 @@ export class EmailService implements IEmailService {
         lock.release();
       }
     } catch (error) {
-      this.logger.error('Failed to connect to email server:', {
-        error: error instanceof Error ? error.message : String(error),
-        host: this.imapConfig.host,
-        user: this.imapConfig.auth.user,
-      });
-
       return {
         success: false,
-        message: `Connection failed: ${error instanceof Error ? error.message : String(error)}`,
-        details: {
-          host: this.imapConfig.host,
-          user: this.imapConfig.auth.user,
-        },
+        message: 'Failed to connect to email server',
+        details: { error: error instanceof Error ? error.message : String(error) },
       };
     } finally {
-      try {
-        await client.logout();
-      } catch (error: unknown) {
-        this.logger.error('Failed to logout from email server:', { error });
-      }
+      await client.logout();
     }
   }
 }

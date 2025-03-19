@@ -1,4 +1,4 @@
-// src/email-cli.ts
+// src/email-standalone.ts
 import { Log } from 'crawlee';
 import { PrismaClient } from '@prisma/client';
 import { EmailService } from './email/services/EmailService';
@@ -152,16 +152,23 @@ async function testConnection() {
 async function getLatestCode() {
   logger.info('Retrieving latest verification code...');
 
-  const code = await emailService.getLatestVerificationCode();
+  const verificationCode = await emailService.getLatestVerificationCode();
 
-  if (code) {
-    logger.info('Successfully retrieved verification code', { code });
+  if (verificationCode) {
+    logger.info('Latest verification code:', {
+      id: verificationCode.id,
+      code: verificationCode.code,
+      received_at: verificationCode.received_at,
+      message_id: verificationCode.message_id,
+      sender_email: verificationCode.sender_email,
+      status: verificationCode.status,
+    });
     console.log('\n✅ Verification code retrieved!');
-    console.log(`- Code: ${code.code}`);
-    console.log(`- Received at: ${code.receivedAt.toLocaleString()}`);
-    console.log(`- Status: ${code.status}`);
-    console.log(`- Message ID: ${code.messageId}`);
-    console.log(`- Sender: ${code.senderEmail}`);
+    console.log(`- Code: ${verificationCode.code}`);
+    console.log(`- Received at: ${verificationCode.received_at.toLocaleString()}`);
+    console.log(`- Status: ${verificationCode.status}`);
+    console.log(`- Message ID: ${verificationCode.message_id}`);
+    console.log(`- Sender: ${verificationCode.sender_email}`);
   } else {
     logger.warning('No verification code found');
     console.log('\n⚠️ No verification code found in the mailbox');
@@ -224,7 +231,7 @@ async function markCodeAsUsed(code: string) {
     console.log('\n✅ Code marked as used!');
     console.log(`- Code: ${result.code}`);
     console.log(`- Status: ${result.status}`);
-    console.log(`- Used at: ${result.usedAt?.toLocaleString() || 'N/A'}`);
+    console.log(`- Used at: ${result.used_at?.toLocaleString() || 'N/A'}`);
   } catch (error) {
     logger.error('Failed to mark code as used', {
       code,
@@ -244,21 +251,21 @@ async function markCodeAsUsed(code: string) {
 async function getCodeStatus(code: string) {
   logger.info('Checking status of verification code', { code });
 
-  const result = await emailService.getCodeStatus(code);
+  const codeStatus = await emailService.getCodeStatus(code);
 
-  if (result) {
+  if (codeStatus) {
     logger.info('Found verification code record', {
       code,
-      status: result.status,
-      id: result.id,
+      status: codeStatus.status,
+      id: codeStatus.id,
     });
 
     console.log('\n✅ Code found in database!');
-    console.log(`- Code: ${result.code}`);
-    console.log(`- Status: ${result.status}`);
-    console.log(`- Received at: ${result.receivedAt.toLocaleString()}`);
-    console.log(`- Used at: ${result.usedAt?.toLocaleString() || 'Not used'}`);
-    console.log(`- Sender: ${result.senderEmail}`);
+    console.log(`- Code: ${codeStatus.code}`);
+    console.log(`- Status: ${codeStatus.status}`);
+    console.log(`- Received at: ${codeStatus.received_at.toLocaleString()}`);
+    console.log(`- Used at: ${codeStatus.used_at?.toLocaleString() || 'Not used'}`);
+    console.log(`- Sender: ${codeStatus.sender_email}`);
   } else {
     logger.warning('Verification code not found', { code });
     console.log('\n⚠️ Code not found in database');
