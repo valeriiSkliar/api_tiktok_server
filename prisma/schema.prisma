@@ -17,72 +17,72 @@ datasource db {
 // Authentication & Session Models
 //=============================================================================
 model Session {
-  id                    Int           @id @default(autoincrement())
-  tiktokAccountId       Int
-  proxyId               Int
-  apiConfigId           Int
-  sessionData           Json
-  createdAt             DateTime      @default(now())
-  expiresAt             DateTime
-  lastActivityTimestamp DateTime?
-  isValid               Boolean       @default(true)
-  status                String
+  id                     Int           @id @default(autoincrement())
+  tiktok_account_id      Int
+  proxy_id               Int
+  api_config_id          Int
+  session_data           Json
+  created_at             DateTime      @default(now())
+  expires_at             DateTime
+  last_activity_timestamp DateTime?
+  is_valid               Boolean       @default(true)
+  status                 String
 
   // Relations
-  tiktokAccount        TikTokAccount @relation("has", fields: [tiktokAccountId], references: [id])
-  proxy                Proxy         @relation("used_by", fields: [proxyId], references: [id])
-  apiConfig            ApiConfiguration @relation("applies_to", fields: [apiConfigId], references: [id])
-  requests             Request[]      @relation("processes")
+  tiktokAccount         TikTokAccount @relation("has", fields: [tiktok_account_id], references: [id])
+  proxy                 Proxy         @relation("used_by", fields: [proxy_id], references: [id])
+  apiConfig             ApiConfiguration @relation("applies_to", fields: [api_config_id], references: [id])
+  requests              Request[]      @relation("processes")
 
-  @@index([isValid])
+  @@index([is_valid])
   @@index([status])
-  @@index([lastActivityTimestamp])
-  @@index([tiktokAccountId])
-  @@index([proxyId])
-  @@index([apiConfigId])
+  @@index([last_activity_timestamp])
+  @@index([tiktok_account_id])
+  @@index([proxy_id])
+  @@index([api_config_id])
 }
 
 model Cache {
   id                    Int           @id @default(autoincrement())
-  requestHash           String
-  responseData          Json
-  createdAt             DateTime      @default(now())
-  expiresAt             DateTime
-  hitCount              Int
-  lastAccessedAt        DateTime?
-  requestId             Int?          @unique  // Foreign key for one-to-one relation
+  request_hash          String
+  response_data         Json
+  created_at            DateTime      @default(now())
+  expires_at            DateTime
+  hit_count            Int
+  last_accessed_at      DateTime?
+  request_id            Int?          @unique
 
   // Relations
-  request              Request?       @relation("stores_result_of", fields: [requestId], references: [id])
+  request              Request?       @relation("stores_result_of", fields: [request_id], references: [id])
 
-  @@index([requestHash])
-  @@index([expiresAt])
-  @@index([lastAccessedAt])
+  @@index([request_hash])
+  @@index([expires_at])
+  @@index([last_accessed_at])
 }
 
 model Request {
   id                    Int           @id @default(autoincrement())
-  externalRequestId     String
-  requestType           String
-  parameters            Json
-  createdAt             DateTime      @default(now())
-  processedAt           DateTime?
-  status                String
-  sessionId             Int
-  responseData          Json?
-  errorDetails          String?
-  priority              Int
-  retryCount            Int
-  webhookUrl            String?
+  external_request_id   String
+  request_type         String
+  parameters           Json
+  created_at           DateTime      @default(now())
+  processed_at         DateTime?
+  status               String
+  session_id           Int
+  response_data        Json?
+  error_details        String?
+  priority             Int
+  retry_count          Int
+  webhook_url          String?
 
   // Relations
-  session              Session        @relation("processes", fields: [sessionId], references: [id])
+  session              Session        @relation("processes", fields: [session_id], references: [id])
   cache                Cache?         @relation("stores_result_of")
   activities           ActivityLog[]  @relation("generates")
 
   @@index([status])
-  @@index([processedAt])
-  @@index([sessionId])
+  @@index([processed_at])
+  @@index([session_id])
 }
 
 //=============================================================================
@@ -94,61 +94,86 @@ model TikTokAccount {
   id                    Int           @id @default(autoincrement())
   username              String        @unique
   password              String
-  emailId               Int
+  email_id               Int
   status                String
-  lastLoginTimestamp    DateTime?
-  creationDate          DateTime      @default(now())
+  last_login_timestamp    DateTime?
+  creation_date          DateTime      @default(now())
   notes                 String?       @db.Text
-  verificationRequired  Boolean       @default(false)
+  verification_required  Boolean       @default(false)
   
   // Additional useful fields from existing model
-  isActive             Boolean       @default(true)
-  lastAuthSuccess      DateTime?     @default(now())
-  updatedAt            DateTime      @updatedAt
+  is_active             Boolean       @default(true)
+  last_auth_success      DateTime?     @default(now())
+  updated_at            DateTime      @updatedAt
   
   // Relations
-  emailAccount         Email         @relation(fields: [emailId], references: [id])
+  email_account         Email         @relation(fields: [email_id], references: [id])
   activities           ActivityLog[] @relation("tiktok_has_activities")
   sessions            Session[]     @relation("has")
+  verification_codes  VerificationCode[] @relation("receives")
 
-  @@index([isActive])
+  @@index([is_active])
   @@index([username])
-  @@index([emailId])
+  @@index([email_id])
 }
 
 model Email {
   id                  Int           @id @default(autoincrement())
-  emailAddress        String        @unique
+  email_address        String        @unique
   provider            String
-  connectionDetails   Json?
+  connection_details   Json?
   username            String
   password            String
   status              String
-  lastCheckTimestamp  DateTime?
-  isAssociated        Boolean       @default(false)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  last_check_timestamp  DateTime?
+  is_associated        Boolean       @default(false)
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @updatedAt
 
   // Relations
   activities         ActivityLog[]   @relation("email_has_activities")
-  TikTokAccount      TikTokAccount[]
+  tiktok_account      TikTokAccount[]
+  verification_codes  VerificationCode[] @relation("contains")
 
-  @@index([isAssociated])
+  @@index([is_associated])
   @@index([status])
-  @@index([lastCheckTimestamp])
+  @@index([last_check_timestamp])
 }
 
+model VerificationCode {
+  id              Int      @id @default(autoincrement())
+  email_id        Int
+  tiktok_account_id Int
+  code            String
+  received_at     DateTime @default(now())
+  used_at         DateTime?
+  status          String
+  message_id      String
+  email_body      String?  @db.Text
+  sender_email    String
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  email          Email         @relation("contains", fields: [email_id], references: [id])
+  tiktok_account TikTokAccount @relation("receives", fields: [tiktok_account_id], references: [id])
+
+  @@index([status])
+  @@index([email_id])
+  @@index([tiktok_account_id])
+  @@unique([code, message_id])
+}
 
 //=============================================================================
 // Infrastructure Models
 //=============================================================================
 model ApiConfiguration {
   id                    Int           @id @default(autoincrement())
-  apiVersion            String
+  api_version            String
   parameters            Json
-  updatedAt             DateTime      @updatedAt
-  isActive              Boolean       @default(true)
-  updateFrequency       Int
+  updated_at             DateTime      @updatedAt
+  is_active              Boolean       @default(true)
+  update_frequency       Int
 
   // Relations
   sessions             Session[]     @relation("applies_to")
@@ -161,23 +186,23 @@ model Proxy {
   port                  Int
   username              String?
   password              String?
-  proxyType             String
+  proxy_type             String
   status                String
-  lastCheckTimestamp    DateTime?
-  successRate           Float
-  averageResponseTime   Int
+  last_check_timestamp    DateTime?
+  success_rate           Float
+  average_response_time   Int
   country               String
   provider              String
   notes                 String?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  created_at             DateTime      @default(now())
+  updated_at             DateTime      @updatedAt
 
   // Relations
   sessions             Session[]     @relation("used_by")
   activities           ActivityLog[] @relation("proxy_has_activities")
 
   @@index([status])
-  @@index([lastCheckTimestamp])
+  @@index([last_check_timestamp])
 }
 
 //=============================================================================
@@ -189,63 +214,39 @@ model Proxy {
 // Email Verification Models
 //=============================================================================
 
-model EmailVerificationCode {
-  id           Int      @id @default(autoincrement())
-  code         String
-  emailId     Int
-  tiktokAccountId Int
-  messageId    String
-  senderEmail  String
-  receivedAt   DateTime @default(now())
-  emailBody    String?  @db.Text
-  status       EmailVerificationStatus @default(UNUSED)
-  usedAt       DateTime?
-  additionalInfo String? @db.Text
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([code, messageId])
-  @@index([status])
-}
-
-enum EmailVerificationStatus {
-  UNUSED
-  USED
-}
-
 
 //=============================================================================
 // Activity Logging Models
 //=============================================================================
 
 model ActivityLog {
-  id        Int        @id @default(autoincrement())
-  timestamp DateTime   @default(now())
-  entityType String
-  entityId   Int
-  actionType String
-  details    Json?
-  severity   String
-  relatedRequestId Int?
-  emailId    Int?     // Foreign key for Email relation
-  tiktokId   Int?     // Foreign key for TikTokAccount relation
-  requestId  Int?     // Foreign key for Request relation
-  proxyId    Int?     // Foreign key for Proxy relation
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  // Relations with unique constraint names
-  email          Email?          @relation("email_has_activities", fields: [emailId], references: [id])
-  tiktokAccount  TikTokAccount?  @relation("tiktok_has_activities", fields: [tiktokId], references: [id])
-  request        Request?        @relation("generates", fields: [requestId], references: [id])
-  proxy          Proxy?          @relation("proxy_has_activities", fields: [proxyId], references: [id])
+  id                Int        @id @default(autoincrement())
+  timestamp         DateTime   @default(now())
+  entity_type       String
+  entity_id         Int
+  action_type       String
+  details           Json?
+  severity          String
+  related_request_id Int?
+  email_id          Int?      // Foreign key for Email relation
+  tiktok_id         Int?      // Foreign key for TikTokAccount relation
+  request_id        Int?      // Foreign key for Request relation
+  proxy_id          Int?      // Foreign key for Proxy relation
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
-  @@index([entityType, entityId])
-  @@index([relatedRequestId])
-  @@index([emailId])
-  @@index([tiktokId])
-  @@index([requestId])
-  @@index([proxyId])
+  // Relations
+  email             Email?          @relation("email_has_activities", fields: [email_id], references: [id])
+  tiktok_account     TikTokAccount?  @relation("tiktok_has_activities", fields: [tiktok_id], references: [id])
+  request           Request?        @relation("generates", fields: [request_id], references: [id])
+  proxy             Proxy?          @relation("proxy_has_activities", fields: [proxy_id], references: [id])
+
+  @@index([entity_type, entity_id])
+  @@index([related_request_id])
+  @@index([email_id])
+  @@index([tiktok_id])
+  @@index([request_id])
+  @@index([proxy_id])
 }
 
 
@@ -256,8 +257,8 @@ model ActivityLog {
 model SearchRequest {
   id        Int        @id @default(autoincrement())
   query     Json
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
 }
 
 //=============================================================================
@@ -267,12 +268,12 @@ model SearchRequest {
 model Statistics {
   id                    Int           @id @default(autoincrement())
   date                  DateTime
-  requestCount          Int
-  successCount          Int
-  failureCount          Int
-  averageResponseTime   Float
-  cacheHitRate          Float
-  blockedSessionCount   Int
+  request_count          Int
+  success_count          Int
+  failure_count          Int
+  average_response_time   Float
+  cache_hit_rate          Float
+  blocked_session_count   Int
   details               Json
 
   @@index([date])
