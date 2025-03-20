@@ -20,6 +20,7 @@ import {
   CookieConsentStep,
   FillLoginFormStep,
   LoginButtonStep,
+  SaveSessionStep,
   SelectPhoneEmailLoginStep,
   SubmitLoginFormStep,
 } from './steps';
@@ -97,7 +98,10 @@ export class TikTokAuthenticator implements IAuthenticator {
       .addStep(new FillLoginFormStep(logger))
       .addStep(new SubmitLoginFormStep(logger))
       .addStep(new CaptchaVerificationStep(logger, captchaSolver))
-      .addStep(new EmailVerificationStep(logger, emailService));
+      .addStep(new EmailVerificationStep(logger, emailService))
+      .addStep(
+        new SaveSessionStep(logger, sessionManager, this.sessionStoragePath),
+      );
   }
 
   async runAuthenticator(credentials: AuthCredentials): Promise<void> {
@@ -119,7 +123,8 @@ export class TikTokAuthenticator implements IAuthenticator {
     );
 
     // Define the session state path based on credentials
-    const sessionStateFilename = `tiktok_${credentials.email.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+    const sessionId = `tiktok_${credentials.email}`;
+    const sessionStateFilename = `${sessionId}.json`;
     const sessionStatePath = path.join(
       this.sessionStoragePath,
       sessionStateFilename,
@@ -152,7 +157,7 @@ export class TikTokAuthenticator implements IAuthenticator {
           // Create a session object from the restored state
           const state = await ctx.page.context().storageState();
           this.currentSession = {
-            id: `tiktok_${credentials.email}_${Date.now()}`,
+            id: sessionId,
             userId: credentials.email,
             cookies: state.cookies,
             headers: {
@@ -175,41 +180,6 @@ export class TikTokAuthenticator implements IAuthenticator {
           );
           // Run the authentication pipeline if session restoration fails
           await this.authPipeline.execute(ctx.page, credentials);
-
-          // Save the new session state after successful login
-          const isLoggedIn = await this.browserHelperService.isLoggedIn(
-            ctx.page,
-          );
-          if (isLoggedIn) {
-            await ctx.page.context().storageState({ path: sessionStatePath });
-            this.logger.info('New session state saved successfully');
-
-            // Create and save the new session
-            const state = await ctx.page.context().storageState();
-            this.currentSession = {
-              id: `tiktok_${credentials.email}_${Date.now()}`,
-              userId: credentials.email,
-              cookies: state.cookies,
-              headers: {
-                'User-Agent': await ctx.page.evaluate(
-                  () => navigator.userAgent,
-                ),
-                'Accept-Language': 'en-US,en;q=0.9',
-                Accept:
-                  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-              },
-              createdAt: new Date(),
-              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
-              lastUsedAt: new Date(),
-              proxyConfig: credentials.proxyConfig,
-            };
-
-            await this.sessionManager.saveSession(this.currentSession);
-          } else {
-            this.logger.error(
-              'Login verification failed after authentication pipeline',
-            );
-          }
         }
       } catch (error) {
         this.logger.error('Error during authentication process:', {

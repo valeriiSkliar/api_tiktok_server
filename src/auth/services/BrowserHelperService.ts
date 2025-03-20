@@ -96,7 +96,7 @@ export class BrowserHelperService {
       console.warn('Logger not set in BrowserHelperService');
     }
 
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(2000);
     // Check for elements that are only visible after login
     this.logger?.info('Checking if logged in...');
 

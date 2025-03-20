@@ -52,11 +52,17 @@ export class SessionRestoreService {
       });
 
       // Restore the stored state
-      const sessionState = JSON.parse(await fs.readFile(sessionPath, 'utf-8'));
+      const sessionData = JSON.parse(await fs.readFile(sessionPath, 'utf-8'));
+
+      // Extract cookies from the session data
+      const cookies = sessionData.cookies;
+      if (!Array.isArray(cookies)) {
+        throw new Error('Invalid session data: cookies array not found');
+      }
 
       try {
         // Add cookies first
-        await page.context().addCookies(sessionState.cookies);
+        await page.context().addCookies(cookies);
 
         // First navigate to a simple page to initialize context
         try {
@@ -71,119 +77,28 @@ export class SessionRestoreService {
           );
         }
 
-        // Restore localStorage for each origin with retry logic
-        if (sessionState.origins) {
-          for (const { origin, localStorage } of sessionState.origins) {
-            let retryCount = 0;
-            const maxRetries = 3;
+        // Wait for cookies to be properly set
+        await page.waitForTimeout(1000);
 
-            while (retryCount < maxRetries) {
-              try {
-                // Navigate to each origin to set its localStorage
-                await page.goto(origin, {
-                  waitUntil: 'domcontentloaded', // Less strict wait condition
-                  timeout: 15000,
-                });
+        // Navigate to the main page to verify session
+        await page.goto(
+          'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en',
+          {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000,
+          },
+        );
 
-                // Set localStorage items
-                await page.evaluate((storageItems) => {
-                  for (const [key, value] of Object.entries(storageItems)) {
-                    try {
-                      window.localStorage.setItem(key, value as string);
-                    } catch (e) {
-                      console.warn(
-                        '[SessionRestoreService] Failed to set localStorage item: ${key}',
-                        e,
-                      );
-                    }
-                  }
-                }, localStorage);
-
-                break; // Success, exit retry loop
-              } catch (error: unknown) {
-                const navError = error as Error;
-                retryCount++;
-                if (retryCount === maxRetries) {
-                  this.logger.warning(
-                    '[SessionRestoreService] Failed to restore localStorage for origin ${origin} after ${maxRetries} attempts',
-                    { error: navError.message },
-                  );
-                } else {
-                  await this.browserHelperService.delay(
-                    this.browserHelperService.randomBetween(2000, 3000),
-                  );
-                }
-              }
-            }
-          }
-        }
-
-        // Verify cookie state
-        const currentState = await page.context().storageState();
-        if (!currentState.cookies || currentState.cookies.length === 0) {
+        // Verify that we're actually logged in
+        const isLoggedIn = await this.browserHelperService.isLoggedIn(page);
+        if (!isLoggedIn) {
           throw new Error(
-            '[SessionRestoreService] State restoration verification failed: No cookies present',
+            'Session restoration failed: not logged in after restoring cookies',
           );
         }
-
-        // Navigate to the main page with retry logic
-        let loginSuccess = false;
-        for (let i = 0; i < 3; i++) {
-          try {
-            // Try navigation with increasing timeouts
-            await page.goto(
-              'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en',
-              {
-                waitUntil: 'domcontentloaded',
-                timeout: 20000 + i * 5000,
-              },
-            );
-
-            // Wait for network to be relatively idle
-            await page
-              .waitForLoadState('networkidle', { timeout: 10000 })
-              .catch(() =>
-                this.logger.debug(
-                  '[SessionRestoreService] NetworkIdle wait timed out, continuing...',
-                ),
-              );
-
-            await this.browserHelperService.delay(
-              this.browserHelperService.randomBetween(2000, 3000),
-            );
-
-            // Verify login status
-            loginSuccess = await this.browserHelperService.isLoggedIn(page);
-            if (loginSuccess) break;
-
-            // If not logged in, wait and retry
-            await this.browserHelperService.delay(
-              this.browserHelperService.randomBetween(3000, 5000),
-            );
-          } catch (error) {
-            this.logger.warning(
-              '[SessionRestoreService] Navigation attempt failed:',
-              { error: (error as Error).message },
-            );
-            if (i === 2) throw error;
-            await this.browserHelperService.delay(
-              this.browserHelperService.randomBetween(3000, 5000),
-            );
-          }
-        }
-
-        if (!loginSuccess) {
-          this.logger.warning(
-            '[SessionRestoreService] Session restored but login check failed',
-          );
-          return false;
-        }
-
-        // Save the verified state back
-        await page.context().storageState({ path: sessionPath });
 
         this.logger.info(
-          '[SessionRestoreService] Session state restored and verified successfully',
+          '[SessionRestoreService] Session restored successfully',
         );
         return true;
       } catch (error) {

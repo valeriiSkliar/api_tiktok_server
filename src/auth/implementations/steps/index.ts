@@ -6,3 +6,4 @@ export * from './FillLoginFormStep';
 export * from './SolveCaptchaStep';
 export * from './CaptchaVerificationStep';
 export * from './EmailVerificationStep';
+export * from './SaveSessionStep';
