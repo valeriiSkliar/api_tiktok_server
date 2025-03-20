@@ -19,4 +19,9 @@ export interface AuthCredentials {
    * Optional proxy configuration to use for the authentication request
    */
   proxyConfig?: ProxyConfig;
+
+  /**
+   * Optional path to the session file for session restoration
+   */
+  sessionPath?: string;
 }

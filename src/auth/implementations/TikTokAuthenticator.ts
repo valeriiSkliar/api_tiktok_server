@@ -27,8 +27,10 @@ import {
 import { BrowserHelperService } from '../services';
 import { EmailService } from '../services';
 import { SessionRestoreService } from '../services';
-import { IntegratedRequestCaptureService } from '../services/RequestCaptureService';
+// import { IntegratedRequestCaptureService } from '../services/RequestCaptureService';
 import { PrismaClient } from '@prisma/client';
+import { SessionRestoreStep } from './steps/SessionRestoreStep';
+import { RequestInterceptionSetupStep } from './steps/RequestInterceptionSetupStep';
 
 /**
  * TikTok authenticator implementation
@@ -52,6 +54,8 @@ export class TikTokAuthenticator implements IAuthenticator {
     'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en';
   private sessionStoragePath = 'storage/sessions';
   private prisma: PrismaClient;
+  private sessionRestoreStep: SessionRestoreStep;
+  private requestInterceptionStep: RequestInterceptionSetupStep;
 
   /**
    * Creates a new TikTokAuthenticator instance
@@ -88,8 +92,19 @@ export class TikTokAuthenticator implements IAuthenticator {
       ...crawlerOptions,
     };
 
-    // Configure authentication pipeline with steps
+    // Инициализируем новые шаги
+    this.sessionRestoreStep = new SessionRestoreStep(
+      logger,
+      this.sessionRestoreService,
+      this.sessionStoragePath,
+    );
+
+    this.requestInterceptionStep = new RequestInterceptionSetupStep(logger);
+
+    // Add session restore and request interception steps to the pipeline
     this.authPipeline
+      .addStep(this.sessionRestoreStep)
+      .addStep(this.requestInterceptionStep)
       .addStep(new CookieConsentStep(logger))
       .addStep(new LoginButtonStep(logger))
       .addStep(new SelectPhoneEmailLoginStep(logger))
@@ -135,7 +150,6 @@ export class TikTokAuthenticator implements IAuthenticator {
     );
 
     // Define the session state path based on credentials
-    const sessionId = `tiktok_${credentials.email}`;
     let sessionStatePath = '';
     let validSessionId: number | null = null;
 
@@ -179,63 +193,32 @@ export class TikTokAuthenticator implements IAuthenticator {
       try {
         this.logger.info('Starting authentication process');
 
-        // Initialize and setup request capture service
-        const requestCaptureService = new IntegratedRequestCaptureService(
-          this.logger,
-          validSessionId ?? undefined,
-        );
-        await requestCaptureService.setupInterception(ctx.page, {
-          log: this.logger,
-          sessionId: validSessionId ?? undefined,
-          page: ctx.page,
-          onFirstRequest: async () => {
-            // Dispose the authenticator on first request
-            // await this.dispose();
-          },
-        });
-
-        // Attempt to restore session only if we have a valid path
-        let sessionRestored = false;
-        if (sessionStatePath) {
-          sessionRestored = await this.sessionRestoreService.restoreSession(
-            ctx.page,
-            sessionStatePath,
-          );
+        // Используем шаг для настройки перехвата запросов
+        if (validSessionId) {
+          this.requestInterceptionStep.setSessionId(validSessionId);
         }
+        await this.requestInterceptionStep.execute(ctx.page);
+
+        // Используем шаг для восстановления сессии
+        const sessionRestored = await this.sessionRestoreStep.execute(
+          ctx.page,
+          {
+            ...credentials,
+            sessionPath: sessionStatePath,
+          },
+        );
 
         if (sessionRestored) {
-          this.logger.info('Successfully restored previous session!');
-          // Create a session object from the restored state
-          const state = await ctx.page.context().storageState();
-          this.currentSession = {
-            id: sessionId,
-            userId: credentials.email,
-            cookies: state.cookies,
-            headers: {
-              'User-Agent': await ctx.page.evaluate(() => navigator.userAgent),
-              'Accept-Language': 'en-US,en;q=0.9',
-              Accept:
-                'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            },
-            createdAt: new Date(),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
-            lastUsedAt: new Date(),
-            proxyConfig: credentials.proxyConfig,
-          };
-          await requestCaptureService.setupInterception(ctx.page, {
-            log: this.logger,
-            sessionId: validSessionId ?? undefined,
-            page: ctx.page,
-            onFirstRequest: async () => {
-              // Dispose the authenticator on first request
-              // await this.dispose();
-            },
-          });
+          // Получаем восстановленную сессию
+          this.currentSession = this.sessionRestoreStep.getRestoredSession();
+
+          // Настраиваем перехват запросов еще раз после восстановления сессии
+          await this.requestInterceptionStep.execute(ctx.page);
         } else {
           this.logger.info(
             'Session restoration failed or expired, proceeding with new login',
           );
-          // Run the authentication pipeline if session restoration fails
+          // Если сессия не была восстановлена, запускаем аутентификационный пайплайн
           await this.authPipeline.execute(ctx.page, credentials);
         }
       } catch (error) {
