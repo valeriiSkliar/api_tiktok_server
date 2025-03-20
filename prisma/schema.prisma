@@ -18,9 +18,10 @@ datasource db {
 //=============================================================================
 model Session {
   id                     Int           @id @default(autoincrement())
-  tiktok_account_id      Int
+  email                  String
   proxy_id               Int
   api_config_id          Int
+  storage_path           String
   session_data           Json
   created_at             DateTime      @default(now())
   expires_at             DateTime
@@ -29,7 +30,7 @@ model Session {
   status                 String
 
   // Relations
-  tiktokAccount         TikTokAccount @relation("has", fields: [tiktok_account_id], references: [id])
+  emailAccount          Email @relation("has", fields: [email], references: [email_address])
   proxy                 Proxy         @relation("used_by", fields: [proxy_id], references: [id])
   apiConfig             ApiConfiguration @relation("applies_to", fields: [api_config_id], references: [id])
   requests              Request[]      @relation("processes")
@@ -37,7 +38,7 @@ model Session {
   @@index([is_valid])
   @@index([status])
   @@index([last_activity_timestamp])
-  @@index([tiktok_account_id])
+  @@index([email])
   @@index([proxy_id])
   @@index([api_config_id])
 }
@@ -109,7 +110,6 @@ model TikTokAccount {
   // Relations
   email_account         Email         @relation(fields: [email_id], references: [id])
   activities           ActivityLog[] @relation("tiktok_has_activities")
-  sessions            Session[]     @relation("has")
   verification_codes  VerificationCode[] @relation("receives")
 
   @@index([is_active])
@@ -133,6 +133,7 @@ model Email {
   // Relations
   activities         ActivityLog[]   @relation("email_has_activities")
   tiktok_account      TikTokAccount[]
+  sessions            Session[]     @relation("has")
   verification_codes  VerificationCode[] @relation("contains")
 
   @@index([is_associated])

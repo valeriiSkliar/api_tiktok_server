@@ -1,100 +1,10 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `createdAt` on the `SearchRequest` table. All the data in the column will be lost.
-  - You are about to drop the column `updatedAt` on the `SearchRequest` table. All the data in the column will be lost.
-  - The primary key for the `TikTokAccount` table will be changed. If it partially fails, the table could be left without primary key constraint.
-  - You are about to drop the column `authFailCount` on the `TikTokAccount` table. All the data in the column will be lost.
-  - You are about to drop the column `createdAt` on the `TikTokAccount` table. All the data in the column will be lost.
-  - You are about to drop the column `email` on the `TikTokAccount` table. All the data in the column will be lost.
-  - You are about to drop the column `isActive` on the `TikTokAccount` table. All the data in the column will be lost.
-  - You are about to drop the column `lastAuthAttempt` on the `TikTokAccount` table. All the data in the column will be lost.
-  - You are about to drop the column `lastAuthSuccess` on the `TikTokAccount` table. All the data in the column will be lost.
-  - You are about to drop the column `updatedAt` on the `TikTokAccount` table. All the data in the column will be lost.
-  - You are about to alter the column `id` on the `TikTokAccount` table. The data in that column could be lost. The data in that column will be cast from `VarChar(191)` to `Int`.
-  - You are about to drop the `AuthData` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `AuthSession` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `EmailAccount` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `EmailVerificationCode` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `ProxyServer` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `RequestSession` table. If the table is not empty, all the data it contains will be lost.
-  - Added the required column `updated_at` to the `SearchRequest` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `email_id` to the `TikTokAccount` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `password` to the `TikTokAccount` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `status` to the `TikTokAccount` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `updated_at` to the `TikTokAccount` table without a default value. This is not possible if the table is not empty.
-
-*/
--- DropForeignKey
-ALTER TABLE `AuthData` DROP FOREIGN KEY `AuthData_sessionId_fkey`;
-
--- DropForeignKey
-ALTER TABLE `EmailAccount` DROP FOREIGN KEY `EmailAccount_tiktokAccountId_fkey`;
-
--- DropForeignKey
-ALTER TABLE `RequestSession` DROP FOREIGN KEY `RequestSession_accountId_fkey`;
-
--- DropForeignKey
-ALTER TABLE `RequestSession` DROP FOREIGN KEY `RequestSession_proxyId_fkey`;
-
--- DropIndex
-DROP INDEX `TikTokAccount_email_key` ON `TikTokAccount`;
-
--- DropIndex
-DROP INDEX `TikTokAccount_isActive_idx` ON `TikTokAccount`;
-
--- AlterTable
-ALTER TABLE `SearchRequest` DROP COLUMN `createdAt`,
-    DROP COLUMN `updatedAt`,
-    ADD COLUMN `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    ADD COLUMN `updated_at` DATETIME(3) NOT NULL;
-
--- AlterTable
-ALTER TABLE `TikTokAccount` DROP PRIMARY KEY,
-    DROP COLUMN `authFailCount`,
-    DROP COLUMN `createdAt`,
-    DROP COLUMN `email`,
-    DROP COLUMN `isActive`,
-    DROP COLUMN `lastAuthAttempt`,
-    DROP COLUMN `lastAuthSuccess`,
-    DROP COLUMN `updatedAt`,
-    ADD COLUMN `creation_date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    ADD COLUMN `email_id` INTEGER NOT NULL,
-    ADD COLUMN `is_active` BOOLEAN NOT NULL DEFAULT true,
-    ADD COLUMN `last_auth_success` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-    ADD COLUMN `last_login_timestamp` DATETIME(3) NULL,
-    ADD COLUMN `notes` TEXT NULL,
-    ADD COLUMN `password` VARCHAR(191) NOT NULL,
-    ADD COLUMN `status` VARCHAR(191) NOT NULL,
-    ADD COLUMN `updated_at` DATETIME(3) NOT NULL,
-    ADD COLUMN `verification_required` BOOLEAN NOT NULL DEFAULT false,
-    MODIFY `id` INTEGER NOT NULL AUTO_INCREMENT,
-    ADD PRIMARY KEY (`id`);
-
--- DropTable
-DROP TABLE `AuthData`;
-
--- DropTable
-DROP TABLE `AuthSession`;
-
--- DropTable
-DROP TABLE `EmailAccount`;
-
--- DropTable
-DROP TABLE `EmailVerificationCode`;
-
--- DropTable
-DROP TABLE `ProxyServer`;
-
--- DropTable
-DROP TABLE `RequestSession`;
-
 -- CreateTable
 CREATE TABLE `Session` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `tiktok_account_id` INTEGER NOT NULL,
+    `email` VARCHAR(191) NOT NULL,
     `proxy_id` INTEGER NOT NULL,
     `api_config_id` INTEGER NOT NULL,
+    `storage_path` VARCHAR(191) NOT NULL,
     `session_data` JSON NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `expires_at` DATETIME(3) NOT NULL,
@@ -105,7 +15,7 @@ CREATE TABLE `Session` (
     INDEX `Session_is_valid_idx`(`is_valid`),
     INDEX `Session_status_idx`(`status`),
     INDEX `Session_last_activity_timestamp_idx`(`last_activity_timestamp`),
-    INDEX `Session_tiktok_account_id_idx`(`tiktok_account_id`),
+    INDEX `Session_email_idx`(`email`),
     INDEX `Session_proxy_id_idx`(`proxy_id`),
     INDEX `Session_api_config_id_idx`(`api_config_id`),
     PRIMARY KEY (`id`)
@@ -148,6 +58,28 @@ CREATE TABLE `Request` (
     INDEX `Request_status_idx`(`status`),
     INDEX `Request_processed_at_idx`(`processed_at`),
     INDEX `Request_session_id_idx`(`session_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TikTokAccount` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `username` VARCHAR(191) NOT NULL,
+    `password` VARCHAR(191) NOT NULL,
+    `email_id` INTEGER NOT NULL,
+    `status` VARCHAR(191) NOT NULL,
+    `last_login_timestamp` DATETIME(3) NULL,
+    `creation_date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `notes` TEXT NULL,
+    `verification_required` BOOLEAN NOT NULL DEFAULT false,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `last_auth_success` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `TikTokAccount_username_key`(`username`),
+    INDEX `TikTokAccount_is_active_idx`(`is_active`),
+    INDEX `TikTokAccount_username_idx`(`username`),
+    INDEX `TikTokAccount_email_id_idx`(`email_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -256,6 +188,16 @@ CREATE TABLE `ActivityLog` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `SearchRequest` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `query` JSON NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `Statistics` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `date` DATETIME(3) NOT NULL,
@@ -271,14 +213,8 @@ CREATE TABLE `Statistics` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateIndex
-CREATE INDEX `TikTokAccount_is_active_idx` ON `TikTokAccount`(`is_active`);
-
--- CreateIndex
-CREATE INDEX `TikTokAccount_email_id_idx` ON `TikTokAccount`(`email_id`);
-
 -- AddForeignKey
-ALTER TABLE `Session` ADD CONSTRAINT `Session_tiktok_account_id_fkey` FOREIGN KEY (`tiktok_account_id`) REFERENCES `TikTokAccount`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `Session` ADD CONSTRAINT `Session_email_fkey` FOREIGN KEY (`email`) REFERENCES `Email`(`email_address`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Session` ADD CONSTRAINT `Session_proxy_id_fkey` FOREIGN KEY (`proxy_id`) REFERENCES `Proxy`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
