@@ -3,7 +3,7 @@ import { AuthCredentials, AuthResult } from '../models';
 import { TikTokAuthenticator } from './TikTokAuthenticator';
 import {
   ICaptchaSolver,
-  IEmailVerificationHandler,
+  // IEmailVerificationHandler,
   ISessionManager,
 } from '../interfaces';
 import { PrismaClient } from '@prisma/client';
@@ -16,7 +16,7 @@ export class TikTokAuthFacade {
   constructor(
     logger: Log,
     captchaSolver: ICaptchaSolver,
-    emailVerifier: IEmailVerificationHandler,
+    // emailVerifier: IEmailVerificationHandler,
     sessionManager: ISessionManager,
     crawlerOptions: Partial<PlaywrightCrawlerOptions> = {},
   ) {
@@ -27,7 +27,6 @@ export class TikTokAuthFacade {
     this.authenticator = new TikTokAuthenticator(
       logger,
       captchaSolver,
-      emailVerifier,
       sessionManager,
       crawlerOptions,
       emailService,

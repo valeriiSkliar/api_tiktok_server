@@ -1,19 +1,12 @@
 // src/auth/factories/AuthenticatorFactory.ts
 
 import { Log, PlaywrightCrawlerOptions } from 'crawlee';
-import {
-  IAuthenticator,
-  ICaptchaSolver,
-  IEmailVerificationHandler,
-  ISessionManager,
-} from '../interfaces';
+import { IAuthenticator, ICaptchaSolver, ISessionManager } from '../interfaces';
 import {
   TikTokAuthenticator,
-  SadCaptchaSolver,
-  TikTokEmailVerificationHandler,
+  SadCaptchaSolverService,
   FileSystemSessionManager,
 } from '../implementations';
-import { EmailApiService } from '../services';
 import { Env } from '@lib/Env';
 import { EmailService } from '../../email/services/EmailService';
 import { PrismaClient } from '@prisma/client';
@@ -33,7 +26,6 @@ export class AuthenticatorFactory {
     options: {
       sessionStoragePath?: string;
       captchaSolverApiKey?: string;
-      emailApiBaseUrl?: string;
       crawlerOptions?: Partial<PlaywrightCrawlerOptions>;
       emailAccountId?: string;
     } = {},
@@ -45,10 +37,6 @@ export class AuthenticatorFactory {
       './storage/sessions';
     const captchaSolverApiKey =
       options.captchaSolverApiKey || process.env.SAD_CAPTCHA_API_KEY || '';
-    const emailApiBaseUrl =
-      options.emailApiBaseUrl ||
-      process.env.EMAIL_API_BASE_URL ||
-      'http://localhost:3000';
     const crawlerOptions = options.crawlerOptions || {};
 
     // Create dependencies
@@ -60,10 +48,10 @@ export class AuthenticatorFactory {
       captchaSolverApiKey,
       logger,
     );
-    const emailVerifier = AuthenticatorFactory.createEmailVerificationHandler(
-      emailApiBaseUrl,
-      logger,
-    );
+    // const emailVerifier = AuthenticatorFactory.createEmailVerificationHandler(
+    //   prisma,
+    //   logger,
+    // );
 
     // Create prisma client and email service
     const prisma = new PrismaClient();
@@ -73,7 +61,7 @@ export class AuthenticatorFactory {
     const authenticator = new TikTokAuthenticator(
       logger,
       captchaSolver,
-      emailVerifier,
+      // emailVerifier,
       sessionManager,
       crawlerOptions,
       emailService,
@@ -110,23 +98,20 @@ export class AuthenticatorFactory {
   ): ICaptchaSolver {
     const screenshotsDir =
       Env.CAPTCHA_SCREENSHOTS_DIR || 'storage/captcha-screenshots';
-    return new SadCaptchaSolver(logger, apiKey, screenshotsDir);
+    return new SadCaptchaSolverService(logger, apiKey, screenshotsDir);
   }
 
   /**
    * Creates an email verification handler instance
-   * @param apiBaseUrl Base URL for the email API service
+   * @param prisma Prisma client instance
    * @param logger Logger instance
-   * @returns IEmailVerificationHandler implementation
+   * @returns EmailService implementation
    */
   private static createEmailVerificationHandler(
-    apiBaseUrl: string,
+    prisma: PrismaClient,
     logger: Log,
-  ): IEmailVerificationHandler {
-    // Create the email API service first
-    const emailApiService = new EmailApiService(apiBaseUrl, logger);
-
-    // Then create the email verification handler with the service
-    return new TikTokEmailVerificationHandler(emailApiService, logger);
+  ): EmailService {
+    // Create the email service first
+    return new EmailService(prisma, logger);
   }
 }

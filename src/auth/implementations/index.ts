@@ -1,4 +1,3 @@
 export * from './FileSystemSessionManager';
-export * from './SadCaptchaSolver';
+export * from '../services/SadCaptchaSolverService';
 export * from './TikTokAuthenticator';
-export * from './TikTokEmailVerificationHandler';

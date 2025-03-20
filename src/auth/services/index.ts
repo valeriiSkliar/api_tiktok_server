@@ -1,3 +1,4 @@
-export * from './EmailApiService';
+export * from './need to remove/EmailApiService';
 export * from './BrowserHelperService';
-export * from './SessionRestoreService';
+export * from './session/SessionRestoreService';
+export * from './session';

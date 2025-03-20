@@ -1,10 +1,11 @@
-// src/auth/implementations/SessionRestoreService.ts
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
 import * as fs from 'fs-extra';
-import * as path from 'path';
-import { BrowserHelperService } from '../services';
+import { BrowserHelperService } from '..';
 
 /**
  * Service for restoring saved browser sessions
@@ -31,9 +32,12 @@ export class SessionRestoreService {
   async restoreSession(page: Page, sessionPath: string): Promise<boolean> {
     try {
       await fs.access(sessionPath);
-      this.logger.info('Found saved session state, attempting to restore...', {
-        sessionPath,
-      });
+      this.logger.info(
+        '[SessionRestoreService] Found saved session state, attempting to restore...',
+        {
+          sessionPath,
+        },
+      );
 
       // Clear existing storage before restoring
       await page.context().clearCookies();
@@ -59,9 +63,12 @@ export class SessionRestoreService {
           await page.goto('about:blank', { timeout: 5000 });
         } catch (error: unknown) {
           const initError = error as Error;
-          this.logger.debug('Initial navigation to blank page failed:', {
-            error: initError.message,
-          });
+          this.logger.debug(
+            '[SessionRestoreService] Initial navigation to blank page failed:',
+            {
+              error: initError.message,
+            },
+          );
         }
 
         // Restore localStorage for each origin with retry logic
@@ -85,7 +92,7 @@ export class SessionRestoreService {
                       window.localStorage.setItem(key, value as string);
                     } catch (e) {
                       console.warn(
-                        `Failed to set localStorage item: ${key}`,
+                        '[SessionRestoreService] Failed to set localStorage item: ${key}',
                         e,
                       );
                     }
@@ -98,7 +105,7 @@ export class SessionRestoreService {
                 retryCount++;
                 if (retryCount === maxRetries) {
                   this.logger.warning(
-                    `Failed to restore localStorage for origin ${origin} after ${maxRetries} attempts`,
+                    '[SessionRestoreService] Failed to restore localStorage for origin ${origin} after ${maxRetries} attempts',
                     { error: navError.message },
                   );
                 } else {
@@ -115,7 +122,7 @@ export class SessionRestoreService {
         const currentState = await page.context().storageState();
         if (!currentState.cookies || currentState.cookies.length === 0) {
           throw new Error(
-            'State restoration verification failed: No cookies present',
+            '[SessionRestoreService] State restoration verification failed: No cookies present',
           );
         }
 
@@ -136,7 +143,9 @@ export class SessionRestoreService {
             await page
               .waitForLoadState('networkidle', { timeout: 10000 })
               .catch(() =>
-                this.logger.debug('NetworkIdle wait timed out, continuing...'),
+                this.logger.debug(
+                  '[SessionRestoreService] NetworkIdle wait timed out, continuing...',
+                ),
               );
 
             await this.browserHelperService.delay(
@@ -152,9 +161,10 @@ export class SessionRestoreService {
               this.browserHelperService.randomBetween(3000, 5000),
             );
           } catch (error) {
-            this.logger.warning(`Navigation attempt ${i + 1} failed:`, {
-              error: (error as Error).message,
-            });
+            this.logger.warning(
+              '[SessionRestoreService] Navigation attempt failed:',
+              { error: (error as Error).message },
+            );
             if (i === 2) throw error;
             await this.browserHelperService.delay(
               this.browserHelperService.randomBetween(3000, 5000),
@@ -163,19 +173,24 @@ export class SessionRestoreService {
         }
 
         if (!loginSuccess) {
-          this.logger.warning('Session restored but login check failed');
+          this.logger.warning(
+            '[SessionRestoreService] Session restored but login check failed',
+          );
           return false;
         }
 
         // Save the verified state back
         await page.context().storageState({ path: sessionPath });
 
-        this.logger.info('Session state restored and verified successfully');
+        this.logger.info(
+          '[SessionRestoreService] Session state restored and verified successfully',
+        );
         return true;
       } catch (error) {
-        this.logger.error('Failed to restore session state:', {
-          error: (error as Error).message,
-        });
+        this.logger.error(
+          '[SessionRestoreService] Failed to restore session state:',
+          { error: (error as Error).message },
+        );
         // Clear everything on failure
         await page.context().clearCookies();
         await page.evaluate(() => {
@@ -185,11 +200,12 @@ export class SessionRestoreService {
         throw error;
       }
     } catch (err: unknown) {
-      this.logger.error('Error restoring session state:', {
-        error: (err as Error).message,
-      });
+      this.logger.error(
+        '[SessionRestoreService] Error restoring session state:',
+        { error: (err as Error).message },
+      );
       this.logger.info(
-        'No saved session found or error restoring session, proceeding with normal login',
+        '[SessionRestoreService] No saved session found or error restoring session, proceeding with normal login',
       );
       return false;
     }

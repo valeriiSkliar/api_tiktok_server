@@ -64,7 +64,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   constructor(
     logger: Log,
     captchaSolver: ICaptchaSolver,
-    emailVerifier: IEmailVerificationHandler,
+    // emailVerifier: IEmailVerificationHandler,
     sessionManager: ISessionManager,
     crawlerOptions: Partial<PlaywrightCrawlerOptions> = {},
     emailService: EmailService,
@@ -73,7 +73,7 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.logger = logger;
 
     this.captchaSolver = captchaSolver;
-    this.emailVerifier = emailVerifier;
+    // this.emailVerifier = emailVerifier;
     this.sessionManager = sessionManager;
     this.emailService = emailService;
     this.sessionRestoreService = new SessionRestoreService(logger);

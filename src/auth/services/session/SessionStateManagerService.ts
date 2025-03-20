@@ -1,5 +1,5 @@
-import { Session } from '../models';
-import { ISessionManager } from '../interfaces';
+import { Session } from '../../models';
+import { ISessionManager } from '../../interfaces';
 
 export class SessionStateManager {
   private sessionManager: ISessionManager;

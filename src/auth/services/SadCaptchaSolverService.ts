@@ -7,7 +7,7 @@ import { Page } from 'playwright';
 import axios from 'axios';
 import * as fs from 'fs';
 import path from 'path';
-import { BrowserHelperService } from '../services';
+import { BrowserHelperService } from '.';
 
 interface SadCaptchaResponse {
   pointOneProportionX: number;
@@ -20,7 +20,7 @@ interface SadCaptchaResponse {
  * Implementation of ICaptchaSolver using SadCaptcha service
  * Handles detection and solving of captchas on TikTok
  */
-export class SadCaptchaSolver implements ICaptchaSolver {
+export class SadCaptchaSolverService implements ICaptchaSolver {
   private readonly baseUrl = 'https://www.sadcaptcha.com/api/v1';
   private readonly logger: Log;
   private readonly apiKey: string;
