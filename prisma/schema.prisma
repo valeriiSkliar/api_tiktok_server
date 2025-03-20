@@ -19,8 +19,8 @@ datasource db {
 model Session {
   id                     Int           @id @default(autoincrement())
   email                  String
-  proxy_id               Int
-  api_config_id          Int
+  proxy_id               Int?
+  api_config_id          Int?
   storage_path           String
   session_data           Json
   created_at             DateTime      @default(now())
@@ -31,8 +31,8 @@ model Session {
 
   // Relations
   emailAccount          Email @relation("has", fields: [email], references: [email_address])
-  proxy                 Proxy         @relation("used_by", fields: [proxy_id], references: [id])
-  apiConfig             ApiConfiguration @relation("applies_to", fields: [api_config_id], references: [id])
+  proxy                 Proxy?         @relation("used_by", fields: [proxy_id], references: [id])
+  apiConfig             ApiConfiguration? @relation("applies_to", fields: [api_config_id], references: [id])
   requests              Request[]      @relation("processes")
 
   @@index([is_valid])
