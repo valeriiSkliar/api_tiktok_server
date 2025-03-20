@@ -7,7 +7,7 @@ import {
   ISessionManager,
 } from '../interfaces';
 import { PrismaClient } from '@prisma/client';
-import { EmailService } from '@src/email/services/EmailService';
+import { EmailService } from '../services';
 import { PlaywrightCrawlerOptions } from 'crawlee';
 
 export class TikTokAuthFacade {
