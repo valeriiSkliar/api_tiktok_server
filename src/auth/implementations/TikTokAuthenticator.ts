@@ -191,13 +191,13 @@ export class TikTokAuthenticator implements IAuthenticator {
       try {
         this.logger.info('Starting authentication process');
 
-        // Используем шаг для настройки перехвата запросов
+        // Use the request interception step to set up request interception
         if (validSessionId) {
           this.requestInterceptionStep.setSessionId(validSessionId);
         }
         await this.requestInterceptionStep.execute(ctx.page);
 
-        // Используем шаг для восстановления сессии
+        // Use the session restore step to restore the session
         const sessionRestored = await this.sessionRestoreStep.execute(
           ctx.page,
           {
@@ -207,16 +207,16 @@ export class TikTokAuthenticator implements IAuthenticator {
         );
 
         if (sessionRestored) {
-          // Получаем восстановленную сессию
+          // Get the restored session
           this.currentSession = this.sessionRestoreStep.getRestoredSession();
 
-          // Настраиваем перехват запросов еще раз после восстановления сессии
+          // Re-configure request interception after session restoration
           await this.requestInterceptionStep.execute(ctx.page);
         } else {
           this.logger.info(
             'Session restoration failed or expired, proceeding with new login',
           );
-          // Если сессия не была восстановлена, запускаем аутентификационный пайплайн
+          // If the session was not restored, start the authentication pipeline
           await this.authPipeline.execute(ctx.page, credentials);
         }
       } catch (error) {
