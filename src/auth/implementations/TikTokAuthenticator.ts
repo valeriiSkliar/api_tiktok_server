@@ -24,7 +24,7 @@ import {
   SubmitLoginFormStep,
 } from './steps';
 import { BrowserHelperService } from '../services';
-import { EmailService } from '../../email/services/EmailService';
+import { EmailService } from '../services/email/EmailService';
 import { EmailVerificationStep } from './steps/EmailVerificationStep';
 import * as path from 'path';
 import { SessionRestoreService } from '../services';

@@ -9,10 +9,10 @@ import { PrismaClient } from '@prisma/client';
 import {
   IEmailService,
   EmailVerificationCodeType,
-} from '../interfaces/IEmailService';
-import { extractVerificationCode } from '../utils/verificationCodeExtractor';
+} from '../../interfaces/email/IEmailService';
+import { extractVerificationCode } from '../../utils/verificationCodeExtractor';
 import { Log } from 'crawlee';
-import { Env } from '../../../lib/Env';
+import { Env } from '@lib/Env';
 
 export class EmailService implements IEmailService {
   private prisma: PrismaClient;

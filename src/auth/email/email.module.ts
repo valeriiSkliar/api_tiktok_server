@@ -1,8 +1,8 @@
 // src/email/email.module.ts
 import { Module } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
-import { EmailService } from './services/EmailService';
+import { EmailService } from '../services/email/EmailService';
 import { Log } from 'crawlee';
+import { PrismaService } from '@src/prisma.service';
 
 @Module({
   providers: [
