@@ -1,8 +1,8 @@
 // src/email-standalone.ts
 import { Log } from 'crawlee';
 import { PrismaClient } from '@prisma/client';
-import { EmailService } from './email/services/EmailService';
 import * as dotenv from 'dotenv';
+import { EmailService } from './auth';
 
 // Define the mailbox info interface
 interface MailboxInfo {
@@ -152,29 +152,60 @@ async function testConnection() {
 async function getLatestCode() {
   logger.info('Retrieving latest verification code...');
 
-  // TODO: Replace hardcoded email ID with a proper value
-  const verificationCode = await emailService.getLatestVerificationCode(1, 1);
-
-  if (verificationCode) {
-    logger.info('Latest verification code:', {
-      id: verificationCode.id,
-      code: verificationCode.code,
-      received_at: verificationCode.received_at,
-      message_id: verificationCode.message_id,
-      sender_email: verificationCode.sender_email,
-      status: verificationCode.status,
+  try {
+    // Get the first active email account
+    const email = await prisma.email.findFirst({
+      where: {
+        status: 'ACTIVE', // Assuming we have a status field to check
+      },
     });
-    console.log('\n✅ Verification code retrieved!');
-    console.log(`- Code: ${verificationCode.code}`);
-    console.log(
-      `- Received at: ${verificationCode.received_at.toLocaleString()}`,
+
+    if (!email) {
+      logger.error('No active email account found in the database');
+      return;
+    }
+
+    // Get the first TikTok account (or you might want to get one associated with the email)
+    const tiktokAccount = await prisma.tikTokAccount.findFirst({
+      where: {
+        status: 'ACTIVE', // Assuming we have a status field to check
+      },
+    });
+
+    if (!tiktokAccount) {
+      logger.error('No active TikTok account found in the database');
+      return;
+    }
+
+    const verificationCode = await emailService.getLatestVerificationCode(
+      email.id,
+      tiktokAccount.id,
     );
-    console.log(`- Status: ${verificationCode.status}`);
-    console.log(`- Message ID: ${verificationCode.message_id}`);
-    console.log(`- Sender: ${verificationCode.sender_email}`);
-  } else {
-    logger.warning('No verification code found');
-    console.log('\n⚠️ No verification code found in the mailbox');
+
+    if (verificationCode) {
+      logger.info('Latest verification code:', {
+        id: verificationCode.id,
+        code: verificationCode.code,
+        received_at: verificationCode.received_at,
+        message_id: verificationCode.message_id,
+        sender_email: verificationCode.sender_email,
+        status: verificationCode.status,
+      });
+      console.log('\n✅ Verification code retrieved!');
+      console.log(`- Code: ${verificationCode.code}`);
+      console.log(
+        `- Received at: ${verificationCode.received_at.toLocaleString()}`,
+      );
+      console.log(`- Status: ${verificationCode.status}`);
+      console.log(`- Message ID: ${verificationCode.message_id}`);
+      console.log(`- Sender: ${verificationCode.sender_email}`);
+    } else {
+      logger.warning('No verification code found');
+      console.log('\n⚠️ No verification code found in the mailbox');
+    }
+  } catch (error) {
+    logger.error('Error retrieving verification code:', error);
+    throw error;
   }
 }
 
