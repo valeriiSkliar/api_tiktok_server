@@ -1,6 +1,9 @@
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 import { AuthCredentials } from '../../models';
 import { BrowserHelperService } from '../../services';
 import { Locator } from 'playwright';
@@ -16,6 +19,10 @@ export class FillLoginFormStep implements IAuthenticationStep {
 
   getName(): string {
     return 'Fill Login Form';
+  }
+
+  getType(): AuthStepType {
+    return AuthStepType.LOGIN;
   }
 
   async execute(page: Page, credentials?: AuthCredentials): Promise<boolean> {

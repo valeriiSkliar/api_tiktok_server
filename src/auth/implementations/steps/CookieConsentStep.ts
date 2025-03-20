@@ -1,9 +1,12 @@
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 
 export class CookieConsentStep implements IAuthenticationStep {
-  private logger: Log;
+  private readonly logger: Log;
 
   constructor(logger: Log) {
     this.logger = logger;
@@ -13,11 +16,14 @@ export class CookieConsentStep implements IAuthenticationStep {
     return 'Cookie Consent';
   }
 
-  async execute(page: Page): Promise<boolean> {
-    this.logger.info('Handling cookie consent banner');
+  getType(): AuthStepType {
+    return AuthStepType.LOGIN;
+  }
 
+  async execute(page: Page): Promise<boolean> {
     try {
-      // Check if the cookie banner is present with a reasonable timeout
+      this.logger.info('Handling cookie consent banner');
+
       const cookieBannerSelector = 'div.tiktok-cookie-banner';
       const allowButtonSelector = 'button:has-text("Allow all")';
 
@@ -121,8 +127,8 @@ export class CookieConsentStep implements IAuthenticationStep {
         stack: error instanceof Error ? error.stack : undefined,
         url: page.url(),
       });
-
-      return false;
+      // Not critical if this fails
+      return true;
     }
   }
 }

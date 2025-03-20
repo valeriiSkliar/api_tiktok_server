@@ -1,6 +1,9 @@
 import { Log } from 'crawlee';
 import { Page } from 'playwright';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 import { ICaptchaSolver } from '../../interfaces/ICaptchaSolver';
 
 /**
@@ -28,6 +31,14 @@ export class SolveCaptchaStep implements IAuthenticationStep {
    */
   getName(): string {
     return 'SolveCaptchaStep';
+  }
+
+  /**
+   * Get the type of this authentication step
+   * @returns AuthStepType.LOGIN as captcha solving is part of the login process
+   */
+  getType(): AuthStepType {
+    return AuthStepType.LOGIN;
   }
 
   /**

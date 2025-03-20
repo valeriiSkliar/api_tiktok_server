@@ -1,9 +1,12 @@
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 
 export class LoginButtonStep implements IAuthenticationStep {
-  private logger: Log;
+  private readonly logger: Log;
 
   constructor(logger: Log) {
     this.logger = logger;
@@ -11,6 +14,10 @@ export class LoginButtonStep implements IAuthenticationStep {
 
   getName(): string {
     return 'Login Button Click';
+  }
+
+  getType(): AuthStepType {
+    return AuthStepType.LOGIN;
   }
 
   async execute(page: Page): Promise<boolean> {

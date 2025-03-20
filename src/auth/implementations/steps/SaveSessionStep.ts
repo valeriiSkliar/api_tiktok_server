@@ -3,7 +3,10 @@
 
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 import { AuthCredentials } from '../../models';
 import { ISessionManager } from '../../interfaces/ISessionManager';
 import { BrowserHelperService } from '../../services';
@@ -31,6 +34,10 @@ export class SaveSessionStep implements IAuthenticationStep {
 
   getName(): string {
     return 'Save Session';
+  }
+
+  getType(): AuthStepType {
+    return AuthStepType.POST_SESSION;
   }
 
   async execute(page: Page, credentials?: AuthCredentials): Promise<boolean> {

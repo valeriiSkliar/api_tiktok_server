@@ -1,6 +1,9 @@
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 import { AuthCredentials } from '../../models';
 import { BrowserHelperService } from '../../services';
 
@@ -15,6 +18,10 @@ export class SelectPhoneEmailLoginStep implements IAuthenticationStep {
 
   getName(): string {
     return 'Select Phone/Email Login';
+  }
+
+  getType(): AuthStepType {
+    return AuthStepType.LOGIN;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

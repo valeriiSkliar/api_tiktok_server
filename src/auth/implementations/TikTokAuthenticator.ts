@@ -27,7 +27,6 @@ import {
 import { BrowserHelperService } from '../services';
 import { EmailService } from '../services';
 import { SessionRestoreService } from '../services';
-// import { IntegratedRequestCaptureService } from '../services/RequestCaptureService';
 import { PrismaClient } from '@prisma/client';
 import { SessionRestoreStep } from './steps/SessionRestoreStep';
 import { RequestInterceptionSetupStep } from './steps/RequestInterceptionSetupStep';
@@ -92,16 +91,15 @@ export class TikTokAuthenticator implements IAuthenticator {
       ...crawlerOptions,
     };
 
-    // Инициализируем новые шаги
+    // Initialize steps that need to be accessed outside the pipeline
     this.sessionRestoreStep = new SessionRestoreStep(
       logger,
       this.sessionRestoreService,
       this.sessionStoragePath,
     );
-
     this.requestInterceptionStep = new RequestInterceptionSetupStep(logger);
 
-    // Add session restore and request interception steps to the pipeline
+    // Add all steps to the pipeline
     this.authPipeline
       .addStep(this.sessionRestoreStep)
       .addStep(this.requestInterceptionStep)

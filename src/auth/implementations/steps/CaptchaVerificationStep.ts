@@ -2,7 +2,10 @@
 
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  IAuthenticationStep,
+  AuthStepType,
+} from '../../interfaces/IAuthenticationStep';
 import { ICaptchaSolver } from '../../interfaces/ICaptchaSolver';
 import { Env } from '@lib/Env';
 
@@ -19,6 +22,10 @@ export class CaptchaVerificationStep implements IAuthenticationStep {
 
   getName(): string {
     return 'Captcha Verification';
+  }
+
+  getType(): AuthStepType {
+    return AuthStepType.LOGIN;
   }
 
   async execute(page: Page): Promise<boolean> {

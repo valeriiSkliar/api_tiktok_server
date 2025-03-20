@@ -2,12 +2,15 @@
 // src/auth/implementations/steps/RequestInterceptionSetupStep.ts
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 import { IntegratedRequestCaptureService } from '../../services/RequestCaptureService';
 
 export class RequestInterceptionSetupStep implements IAuthenticationStep {
   private readonly logger: Log;
-  private requestCaptureService: IntegratedRequestCaptureService; // Убрали readonly
+  private requestCaptureService: IntegratedRequestCaptureService;
   private sessionId?: number;
 
   constructor(logger: Log, sessionId?: number) {
@@ -21,6 +24,10 @@ export class RequestInterceptionSetupStep implements IAuthenticationStep {
 
   getName(): string {
     return 'Request Interception Setup';
+  }
+
+  getType(): AuthStepType {
+    return AuthStepType.POST_SESSION;
   }
 
   async execute(page: Page): Promise<boolean> {

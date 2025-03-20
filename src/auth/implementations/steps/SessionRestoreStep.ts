@@ -1,7 +1,10 @@
 // src/auth/implementations/steps/SessionRestoreStep.ts
 import { Page } from 'playwright';
 import { Log } from 'crawlee';
-import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
+import {
+  AuthStepType,
+  IAuthenticationStep,
+} from '../../interfaces/IAuthenticationStep';
 import { AuthCredentials, Session } from '../../models';
 import { SessionRestoreService } from '../../services/session/SessionRestoreService';
 
@@ -25,6 +28,10 @@ export class SessionRestoreStep implements IAuthenticationStep {
 
   getName(): string {
     return 'Session Restore';
+  }
+
+  getType(): AuthStepType {
+    return AuthStepType.PRE_SESSION;
   }
 
   async execute(page: Page, credentials?: AuthCredentials): Promise<boolean> {
