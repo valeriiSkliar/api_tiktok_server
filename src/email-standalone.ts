@@ -3,6 +3,7 @@ import { Log } from 'crawlee';
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 import { EmailService } from './auth';
+import { EmailAccount } from './email-account/entities/email-account.entity';
 
 // Define the mailbox info interface
 interface MailboxInfo {
@@ -25,9 +26,22 @@ const logger = new Log({ prefix: 'EmailServiceCLI' });
 
 // Setup Prisma client
 const prisma = new PrismaClient();
+let emailService: EmailService;
 
-// Create email service
-const emailService = new EmailService(prisma, logger);
+async function initializeEmailService() {
+  // Get email account
+  const emailAccount = (await prisma.email.findFirst({
+    where: { id: 1 },
+  })) as EmailAccount;
+
+  if (!emailAccount) {
+    console.error('Email account not found');
+    process.exit(1);
+  }
+
+  // Create email service
+  emailService = new EmailService(prisma, logger, emailAccount);
+}
 
 /**
  * Display help message
@@ -308,5 +322,13 @@ async function getCodeStatus(code: string) {
   }
 }
 
-// Run the CLI
-main().catch(console.error);
+// Initialize the service before running commands
+initializeEmailService()
+  .then(() => {
+    // Run the CLI
+    main().catch(console.error);
+  })
+  .catch((error) => {
+    console.error('Failed to initialize email service:', error);
+    process.exit(1);
+  });

@@ -5,6 +5,8 @@ import { Log } from 'crawlee';
 import { AuthenticatorFactory } from './factories';
 import { IAuthenticator } from './interfaces';
 import { AuthCredentials } from './models';
+import { EmailAccount } from '@src/email-account/entities/email-account.entity';
+import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class AuthService implements OnModuleInit, OnModuleDestroy {
@@ -12,8 +14,12 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
   private page: Page | null = null;
   private authenticator: IAuthenticator | null = null;
   private logger: Log;
+  private emailAccount: EmailAccount;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private prisma: PrismaClient,
+  ) {
     this.logger = new Log({ prefix: 'AuthService' });
   }
 
@@ -46,6 +52,7 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
               '',
             ),
           },
+          this.emailAccount,
         );
       }
 

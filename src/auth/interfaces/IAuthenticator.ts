@@ -9,7 +9,7 @@ import { AuthCredentials } from '../models';
  */
 export interface IAuthenticator {
   // /**
-  //  * Performs login with the provided credenstials
+  //  * Performs login with the provided credentials
   //  * @param credentials User credentials for authentication
   //  * @param page Page for context
   //  * @returns Promise resolving to authentication result

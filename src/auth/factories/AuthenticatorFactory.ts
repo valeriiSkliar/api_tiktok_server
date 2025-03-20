@@ -10,6 +10,7 @@ import {
 import { Env } from '@lib/Env';
 import { EmailService } from '../services';
 import { PrismaClient } from '@prisma/client';
+import { EmailAccount } from '@src/email-account/entities/email-account.entity';
 
 /**
  * Factory for creating authenticator instances
@@ -19,6 +20,7 @@ export class AuthenticatorFactory {
    * Creates a TikTok authenticator with all necessary dependencies
    * @param logger Logger instance
    * @param options Additional options for authenticator creation
+   * @param emailAccountId ID of the email account to use
    * @returns TikTokAuthenticator instance
    */
   static createTikTokAuthenticator(
@@ -27,8 +29,8 @@ export class AuthenticatorFactory {
       sessionStoragePath?: string;
       captchaSolverApiKey?: string;
       crawlerOptions?: Partial<PlaywrightCrawlerOptions>;
-      emailAccountId?: string;
     } = {},
+    emailAccount: EmailAccount,
   ): IAuthenticator {
     // Set default options
     const sessionStoragePath =
@@ -55,7 +57,7 @@ export class AuthenticatorFactory {
 
     // Create prisma client and email service
     const prisma = new PrismaClient();
-    const emailService = new EmailService(prisma, logger);
+    const emailService = new EmailService(prisma, logger, emailAccount);
 
     // Create and set up the authenticator
     const authenticator = new TikTokAuthenticator(
@@ -110,8 +112,10 @@ export class AuthenticatorFactory {
   private static createEmailVerificationHandler(
     prisma: PrismaClient,
     logger: Log,
+    emailAccount: EmailAccount,
+    // imapConfig?: IImapConfig,
   ): EmailService {
     // Create the email service first
-    return new EmailService(prisma, logger);
+    return new EmailService(prisma, logger, emailAccount);
   }
 }

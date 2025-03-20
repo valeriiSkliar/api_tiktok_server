@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 // src/auth-runner.ts
 import { Log } from 'crawlee';
 import * as dotenv from 'dotenv';
@@ -5,6 +8,8 @@ import * as fs from 'fs-extra';
 import { AuthenticatorFactory } from './auth/factories/AuthenticatorFactory';
 import { AuthCredentials } from './auth/models/AuthCredentials';
 import { Env } from '@lib/Env';
+import { PrismaClient } from '@prisma/client';
+import { EmailAccount } from './email-account/entities/email-account.entity';
 
 // Load environment variables
 dotenv.config();
@@ -25,8 +30,19 @@ async function ensureDirectoryExists(dirPath: string): Promise<void> {
 /**
  * Main function to run the authenticator
  */
-async function runAuthenticator(emailAccountId: string) {
-  console.log('Running authenticator for email account:', emailAccountId);
+async function runAuthenticator(emailAccountId: number) {
+  // Create prisma client and email service
+  const prisma = new PrismaClient();
+  // get Email account
+  const emailAccount = (await prisma.email.findUnique({
+    where: {
+      id: emailAccountId,
+    },
+  })) as EmailAccount;
+  if (!emailAccount) {
+    console.error('Email account not found');
+    return;
+  }
   const logger = new Log({ prefix: 'AuthRunner' });
   logger.info('Starting TikTok authenticator runner');
   const headless = Env.HEADLESS;
@@ -49,6 +65,7 @@ async function runAuthenticator(emailAccountId: string) {
           headless,
         },
       },
+      emailAccount,
     );
 
     // Check if credentials are provided
@@ -97,7 +114,7 @@ async function runAuthenticator(emailAccountId: string) {
 }
 
 // Run the authenticator
-runAuthenticator('1').catch((error: unknown) => {
+runAuthenticator(1).catch((error: unknown) => {
   console.error('Unhandled error in runAuthenticator:', error);
   process.exit(1);
 });

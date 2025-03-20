@@ -9,6 +9,7 @@ import {
 import { PrismaClient } from '@prisma/client';
 import { EmailService } from '../services';
 import { PlaywrightCrawlerOptions } from 'crawlee';
+import { EmailAccount } from '@src/email-account/entities/email-account.entity';
 
 export class TikTokAuthFacade {
   private authenticator: TikTokAuthenticator;
@@ -19,10 +20,11 @@ export class TikTokAuthFacade {
     // emailVerifier: IEmailVerificationHandler,
     sessionManager: ISessionManager,
     crawlerOptions: Partial<PlaywrightCrawlerOptions> = {},
+    emailAccount: EmailAccount,
   ) {
     // Create prisma client and email service
     const prisma = new PrismaClient();
-    const emailService = new EmailService(prisma, logger);
+    const emailService = new EmailService(prisma, logger, emailAccount);
 
     this.authenticator = new TikTokAuthenticator(
       logger,

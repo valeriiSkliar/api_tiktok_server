@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   ImapFlow,
   ImapFlowOptions,
@@ -13,26 +15,44 @@ import {
 import { extractVerificationCode } from '../../utils/verificationCodeExtractor';
 import { Log } from 'crawlee';
 import { Env } from '@lib/Env';
+import {
+  EmailAccount,
+  EmailConnectionDetails,
+} from '@src/email-account/entities/email-account.entity';
 
 export class EmailService implements IEmailService {
   private prisma: PrismaClient;
   private logger: Log;
   private imapConfig: ImapFlowOptions;
 
-  constructor(prisma: PrismaClient, logger: Log) {
+  constructor(prisma: PrismaClient, logger: Log, emailAccount: EmailAccount) {
     this.prisma = prisma;
     this.logger = logger;
+    this.logger.info('Creating email service instance', {
+      emailAccount: emailAccount,
+    });
+
+    const connectionDetails =
+      emailAccount.connection_details as EmailConnectionDetails;
+
+    // Log the configuration we're about to use
+    this.logger.info('IMAP Configuration:', {
+      host: connectionDetails?.imap_host || Env.UKR_NET_IMAP_HOST,
+      port: connectionDetails?.imap_port || 993,
+      email: emailAccount.email_address,
+    });
+
     this.imapConfig = {
-      host: Env.UKR_NET_IMAP_HOST,
-      port: 993,
+      host: connectionDetails?.imap_host || Env.UKR_NET_IMAP_HOST,
+      port: connectionDetails?.imap_port || 993,
       secure: true,
       auth: {
-        user: Env.UKR_NET_EMAIL,
+        user: emailAccount.email_address,
         pass: Env.UKR_NET_APP_PASSWORD,
       },
       logger: false,
       tls: {
-        rejectUnauthorized: true,
+        rejectUnauthorized: false, // Allow self-signed certificates
       },
     };
   }
@@ -246,7 +266,11 @@ export class EmailService implements IEmailService {
     const client = this.getImapClient();
 
     try {
-      this.logger.info('Testing connection to IMAP server...');
+      this.logger.info('Testing connection to IMAP server...', {
+        host: this.imapConfig.host,
+        user: this.imapConfig.auth.user,
+      });
+
       await client.connect();
 
       const lock = await client.getMailboxLock('INBOX');
@@ -272,15 +296,31 @@ export class EmailService implements IEmailService {
         lock.release();
       }
     } catch (error) {
+      this.logger.error('Failed to connect to email server', {
+        error,
+        config: {
+          host: this.imapConfig.host,
+          user: this.imapConfig.auth.user,
+        },
+      });
       return {
         success: false,
-        message: 'Failed to connect to email server',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to connect to email server',
         details: {
+          host: this.imapConfig.host,
+          user: this.imapConfig.auth.user,
           error: error instanceof Error ? error.message : String(error),
         },
       };
     } finally {
-      await client.logout();
+      try {
+        await client.logout();
+      } catch (error) {
+        this.logger.info('Error during logout', { error });
+      }
     }
   }
 }

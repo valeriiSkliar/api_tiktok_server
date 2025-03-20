@@ -1,8 +1,8 @@
-// src/email/email.module.ts
 import { Module } from '@nestjs/common';
 import { EmailService } from '../services';
 import { Log } from 'crawlee';
 import { PrismaService } from '@src/prisma.service';
+import { EmailAccount } from '@src/email-account/entities/email-account.entity';
 
 @Module({
   providers: [
@@ -13,12 +13,17 @@ import { PrismaService } from '@src/prisma.service';
     },
     {
       provide: 'EMAIL_SERVICE',
-      useFactory: (prisma: PrismaService, logger: Log) => {
-        return new EmailService(prisma, logger);
+      useFactory: (
+        prisma: PrismaService,
+        logger: Log,
+        emailAccount: EmailAccount,
+      ) => {
+        return new EmailService(prisma, logger, emailAccount);
       },
-      inject: [PrismaService, Log],
+      inject: [PrismaService, Log, EmailAccount],
     },
   ],
   exports: ['EMAIL_SERVICE'],
+  imports: [PrismaService, EmailAccount],
 })
 export class EmailModule {}
