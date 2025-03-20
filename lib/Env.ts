@@ -46,7 +46,7 @@ export const Env = createEnv({
     DATABASE_SQLITE_URL: z.string().default('file:./data/tiktok.db'),
     DATABASE_MYSQL_URL: z
       .string()
-      .default('mysql://user:password@localhost:3306/tiktok'),
+      .default('mysql://root:password@localhost:3306/tiktok'),
 
     // Email Service Configuration
     UKR_NET_EMAIL: z.string(),

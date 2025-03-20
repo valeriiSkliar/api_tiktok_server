@@ -45,10 +45,6 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
               'SAD_CAPTCHA_API_KEY',
               '',
             ),
-            emailApiBaseUrl: this.configService.get<string>(
-              'EMAIL_API_BASE_URL',
-              'http://localhost:3000',
-            ),
           },
         );
       }
