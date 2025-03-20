@@ -115,6 +115,7 @@ export class TikTokAuthenticator implements IAuthenticator {
       });
     } finally {
       await this.prisma.$disconnect();
+      // await this.crawler?.teardown();
     }
   }
 
@@ -136,6 +137,7 @@ export class TikTokAuthenticator implements IAuthenticator {
     // Define the session state path based on credentials
     const sessionId = `tiktok_${credentials.email}`;
     let sessionStatePath = '';
+    let validSessionId: number | null = null;
 
     // Get valid session from database
     try {
@@ -164,6 +166,7 @@ export class TikTokAuthenticator implements IAuthenticator {
         if (storagePath) {
           sessionStatePath = storagePath;
         }
+        validSessionId = validSession.id;
       }
     } catch (error) {
       this.logger.error('Error getting valid session:', {
@@ -179,9 +182,12 @@ export class TikTokAuthenticator implements IAuthenticator {
         // Initialize and setup request capture service
         const requestCaptureService = new IntegratedRequestCaptureService(
           this.logger,
+          validSessionId ?? undefined,
         );
         await requestCaptureService.setupInterception(ctx.page, {
           log: this.logger,
+          sessionId: validSessionId ?? undefined,
+          page: ctx.page,
           onFirstRequest: async () => {
             // Dispose the authenticator on first request
             // await this.dispose();
@@ -216,6 +222,15 @@ export class TikTokAuthenticator implements IAuthenticator {
             lastUsedAt: new Date(),
             proxyConfig: credentials.proxyConfig,
           };
+          await requestCaptureService.setupInterception(ctx.page, {
+            log: this.logger,
+            sessionId: validSessionId ?? undefined,
+            page: ctx.page,
+            onFirstRequest: async () => {
+              // Dispose the authenticator on first request
+              // await this.dispose();
+            },
+          });
         } else {
           this.logger.info(
             'Session restoration failed or expired, proceeding with new login',

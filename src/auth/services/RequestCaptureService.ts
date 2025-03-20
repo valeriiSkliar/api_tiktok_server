@@ -4,8 +4,10 @@
 import fs from 'fs';
 import { Request, Page } from 'playwright';
 import { Log } from 'crawlee';
+import { PrismaClient } from '@prisma/client';
+import { BrowserHelperService } from './BrowserHelperService';
 
-interface CapturedRequest {
+export interface CapturedRequest {
   url: string;
   method: string;
   headers: Record<string, string>;
@@ -22,6 +24,15 @@ interface RequestInterceptionOptions {
    * Callback to be called when first request is intercepted
    */
   onFirstRequest?: () => Promise<void>;
+
+  /**
+   * Session ID to connect the captured request to
+   */
+  sessionId?: number;
+  /**
+   * Page instance to intercept requests
+   */
+  page?: Page;
 }
 
 /**
@@ -30,14 +41,26 @@ interface RequestInterceptionOptions {
 export class IntegratedRequestCaptureService {
   private static CAPTURES_DIR = 'storage/request-captures';
   private isFirstRequest = true;
+  private prisma: PrismaClient;
+  private sessionId?: number;
+  private browserHelperService: BrowserHelperService;
 
   // Default API endpoints to intercept
   private static DEFAULT_ENDPOINTS = [
     '**/creative_radar_api/v1/top_ads/v2/list**',
   ];
 
-  constructor(private log?: Log) {
+  constructor(
+    private log?: Log,
+    sessionId?: number,
+  ) {
     this.ensureCapturesDirectory();
+    this.prisma = new PrismaClient();
+    this.sessionId = sessionId;
+    this.browserHelperService = BrowserHelperService.getInstance();
+    if (this.log) {
+      this.browserHelperService.setLogger(this.log);
+    }
   }
 
   /**
@@ -71,10 +94,51 @@ export class IntegratedRequestCaptureService {
       JSON.stringify(capturedRequest, null, 2),
     );
 
+    // Extract API version from URL or headers
+    const apiVersion = this.extractApiVersion(request.url());
+
+    // Create ApiConfiguration record and connect to session if sessionId is provided
+    const apiConfig = await this.prisma.apiConfiguration.create({
+      data: {
+        api_version: apiVersion,
+        parameters: {
+          url: capturedRequest.url,
+          method: capturedRequest.method,
+          headers: capturedRequest.headers,
+          postData: capturedRequest.postData,
+          timestamp: capturedRequest.timestamp,
+        },
+        is_active: true,
+        update_frequency: 3600,
+        sessions: this.sessionId
+          ? {
+              connect: {
+                id: this.sessionId,
+              },
+            }
+          : undefined,
+      },
+    });
+
+    // If we have a sessionId but didn't connect it during creation, update the session
+    if (this.sessionId) {
+      await this.prisma.session.update({
+        where: { id: this.sessionId },
+        data: { api_config_id: apiConfig.id },
+      });
+    }
+
     this.log?.debug('Request captured and saved', {
       url: request.url(),
       filepath,
+      apiConfigId: apiConfig.id,
     });
+  }
+
+  private extractApiVersion(url: string): string {
+    // Extract version from URL pattern like 'v1' or 'v2'
+    const versionMatch = url.match(/v(\d+)/);
+    return versionMatch ? `v${versionMatch[1]}` : 'v1'; // Default to v1 if not found
   }
 
   /**

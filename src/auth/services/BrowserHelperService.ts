@@ -96,11 +96,11 @@ export class BrowserHelperService {
       console.warn('Logger not set in BrowserHelperService');
     }
 
-    await page.waitForTimeout(2000);
-    // Check for elements that are only visible after login
+    await page.waitForTimeout(5000); // Increased timeout for page stabilization
     this.logger?.info('Checking if logged in...');
 
     const loggedInSelectors = [
+      // TikTok main site selectors
       'div[data-testid="cc_header_userInfo"]',
       '.UserDropDown_trigger__Ian3g',
       '.DefaultAvatar_wrapper__NpgQV',
@@ -109,11 +109,18 @@ export class BrowserHelperService {
       'div[class*="DefaultAvatar_wrapper"]',
       'img[class*="avatar"]',
       'div[class*="avatar"]',
+      // TikTok Ads site selectors
+      '[data-e2e="profile-icon"]',
+      '.user-info',
+      '.profile-header',
+      // Generic authenticated elements
+      'button[aria-label="Log out"]',
+      'a[href*="profile"]',
     ];
 
     for (const selector of loggedInSelectors) {
       const isVisible = await page
-        .isVisible(selector, { timeout: 2000 })
+        .isVisible(selector, { timeout: 5000 }) // Increased timeout per selector
         .catch(() => false);
       if (isVisible) {
         this.logger?.info('Logged in successfully');
@@ -121,6 +128,26 @@ export class BrowserHelperService {
       }
     }
 
+    // Additional check - look for login button
+    const loginButtonVisible = await page
+      .isVisible('div[data-testid="cc_header_login"]', { timeout: 2000 })
+      .catch(() => false);
+
+    if (loginButtonVisible) {
+      this.logger?.info('Login button found - not logged in');
+      return false;
+    }
+
+    // If we can't definitively determine state, check URL for authenticated paths
+    const currentUrl = page.url();
+    if (currentUrl.includes('/profile') || currentUrl.includes('/settings')) {
+      this.logger?.info('On authenticated page - assuming logged in');
+      return true;
+    }
+
+    this.logger?.info(
+      'Could not definitively determine login state - assuming not logged in',
+    );
     return false;
   }
 
