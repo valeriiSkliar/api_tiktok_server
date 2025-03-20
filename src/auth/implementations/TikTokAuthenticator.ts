@@ -30,6 +30,7 @@ import { SessionRestoreService } from '../services';
 import { PrismaClient } from '@prisma/client';
 import { SessionRestoreStep } from './steps/SessionRestoreStep';
 import { RequestInterceptionSetupStep } from './steps/RequestInterceptionSetupStep';
+import { NaturalScrollingStep } from './steps/NaturalScrollingStep';
 
 /**
  * TikTok authenticator implementation
@@ -55,6 +56,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   private prisma: PrismaClient;
   private sessionRestoreStep: SessionRestoreStep;
   private requestInterceptionStep: RequestInterceptionSetupStep;
+  private naturalScrollingStep: NaturalScrollingStep;
 
   /**
    * Creates a new TikTokAuthenticator instance
@@ -90,6 +92,10 @@ export class TikTokAuthenticator implements IAuthenticator {
       headless: process.env.HEADLESS === 'true',
       ...crawlerOptions,
     };
+    this.naturalScrollingStep = new NaturalScrollingStep(logger, {
+      maxScrolls: 15,
+      bottomMargin: 300,
+    });
 
     // Initialize steps that need to be accessed outside the pipeline
     this.sessionRestoreStep = new SessionRestoreStep(
@@ -97,7 +103,11 @@ export class TikTokAuthenticator implements IAuthenticator {
       this.sessionRestoreService,
       this.sessionStoragePath,
     );
-    this.requestInterceptionStep = new RequestInterceptionSetupStep(logger);
+    this.requestInterceptionStep = new RequestInterceptionSetupStep(
+      logger,
+      undefined,
+      this.naturalScrollingStep,
+    );
 
     // Add all steps to the pipeline
     this.authPipeline
@@ -112,7 +122,8 @@ export class TikTokAuthenticator implements IAuthenticator {
       .addStep(new EmailVerificationStep(logger, emailService))
       .addStep(
         new SaveSessionStep(logger, sessionManager, this.sessionStoragePath),
-      );
+      )
+      .addStep(this.naturalScrollingStep);
 
     this.prisma = new PrismaClient();
   }
@@ -212,6 +223,17 @@ export class TikTokAuthenticator implements IAuthenticator {
 
           // Re-configure request interception after session restoration
           await this.requestInterceptionStep.execute(ctx.page);
+
+          // Execute natural scrolling step
+          await this.naturalScrollingStep.execute(ctx.page);
+
+          // If scrolling was interrupted by API request capture
+          if (this.naturalScrollingStep.wasInterruptedByApiRequest()) {
+            this.logger.info(
+              'Scrolling was interrupted by successful API request capture',
+            );
+            // Here you can continue with another logic
+          }
         } else {
           this.logger.info(
             'Session restoration failed or expired, proceeding with new login',
