@@ -118,25 +118,89 @@ export class EmailService implements IEmailService {
 
     while (Date.now() - startTime < timeoutMs) {
       try {
-        // First get the email and tiktok account IDs
+        // First get the email record
         const emailRecord = await this.prisma.email.findFirst({
           where: { email_address: email },
-          include: { tiktok_account: true },
+          include: {
+            tiktok_account: true,
+          },
         });
 
-        if (!emailRecord || !emailRecord.tiktok_account) {
-          throw new Error(
-            `No email record or TikTok account found for ${email}`,
+        if (!emailRecord) {
+          // Create email record if it doesn't exist
+          const newEmailRecord = await this.prisma.email.create({
+            data: {
+              email_address: email,
+              provider: 'ukr.net',
+              username: Env.UKR_NET_EMAIL,
+              password: Env.UKR_NET_APP_PASSWORD,
+              status: 'ACTIVE',
+              connection_details: {
+                host: this.imapConfig.host,
+                port: this.imapConfig.port,
+                secure: this.imapConfig.secure,
+                auth: {
+                  user: this.imapConfig.auth.user,
+                  pass: this.imapConfig.auth.pass,
+                },
+                tls: {
+                  rejectUnauthorized:
+                    this.imapConfig.tls &&
+                    typeof this.imapConfig.tls === 'object' &&
+                    'rejectUnauthorized' in this.imapConfig.tls
+                      ? (this.imapConfig.tls as { rejectUnauthorized: boolean })
+                          .rejectUnauthorized
+                      : true,
+                },
+              },
+            },
+          });
+
+          // Create TikTok account if needed
+          const tiktokAccount = await this.prisma.tikTokAccount.create({
+            data: {
+              email_id: newEmailRecord.id,
+              status: 'ACTIVE',
+              username: `tiktok_${newEmailRecord.email_address}`,
+              password: 'temp_password', // This should be replaced with actual password
+              is_active: true,
+              verification_required: true,
+            },
+          });
+
+          const verificationCode = await this.getLatestVerificationCode(
+            newEmailRecord.id,
+            tiktokAccount.id,
           );
-        }
 
-        const verificationCode = await this.getLatestVerificationCode(
-          emailRecord.id,
-          emailRecord.tiktok_account[0]?.id,
-        );
+          if (verificationCode && verificationCode.status === 'UNUSED') {
+            return verificationCode.code;
+          }
+        } else {
+          // Get or create TikTok account
+          let tiktokAccount = emailRecord.tiktok_account[0];
 
-        if (verificationCode && verificationCode.status === 'UNUSED') {
-          return verificationCode.code;
+          if (!tiktokAccount) {
+            tiktokAccount = await this.prisma.tikTokAccount.create({
+              data: {
+                email_id: emailRecord.id,
+                status: 'ACTIVE',
+                username: `tiktok_${emailRecord.email_address}`,
+                password: 'temp_password', // This should be replaced with actual password
+                is_active: true,
+                verification_required: true,
+              },
+            });
+          }
+
+          const verificationCode = await this.getLatestVerificationCode(
+            emailRecord.id,
+            tiktokAccount.id,
+          );
+
+          if (verificationCode && verificationCode.status === 'UNUSED') {
+            return verificationCode.code;
+          }
         }
       } catch (error) {
         this.logger.error('Error while polling for verification code:', error);
