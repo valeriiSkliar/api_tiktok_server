@@ -16,3 +16,6 @@ export * from './factories';
 
 // Export all services
 export * from './services';
+
+// Export all configurations
+export * from './config';
