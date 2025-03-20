@@ -8,7 +8,7 @@ import {
   FileSystemSessionManager,
 } from '../implementations';
 import { Env } from '@lib/Env';
-import { EmailService } from '../services/email/EmailService';
+import { EmailService } from '../services';
 import { PrismaClient } from '@prisma/client';
 
 /**

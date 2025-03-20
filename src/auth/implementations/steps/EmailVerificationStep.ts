@@ -4,8 +4,7 @@ import { Page } from 'playwright';
 import { Log } from 'crawlee';
 import { IAuthenticationStep } from '../../interfaces/IAuthenticationStep';
 import { AuthCredentials } from '../../models';
-import { EmailService } from '../../services/email/EmailService';
-import { BrowserHelperService } from '../../services';
+import { BrowserHelperService, EmailService } from '../../services';
 
 export class EmailVerificationStep implements IAuthenticationStep {
   private readonly logger: Log;

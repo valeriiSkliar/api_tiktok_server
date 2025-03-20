@@ -23,10 +23,10 @@ import {
   SaveSessionStep,
   SelectPhoneEmailLoginStep,
   SubmitLoginFormStep,
+  EmailVerificationStep,
 } from './steps';
 import { BrowserHelperService } from '../services';
-import { EmailService } from '../services/email/EmailService';
-import { EmailVerificationStep } from './steps/EmailVerificationStep';
+import { EmailService } from '../services';
 import * as path from 'path';
 import { SessionRestoreService } from '../services';
 import { IntegratedRequestCaptureService } from '../services/RequestCaptureService';
