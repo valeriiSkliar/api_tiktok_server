@@ -5,6 +5,51 @@
   },
   "item": [
     {
+      "name": "TikTok Search",
+      "item": [
+        {
+          "name": "Search TikTok",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tiktok-search?keyword=example&period=30&page=1&order_by=like&country_code=RO",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiktok-search"],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "example",
+                  "description": "Search keyword"
+                },
+                {
+                  "key": "period",
+                  "value": "30",
+                  "description": "Period in days (7, 30, or 180)"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "order_by",
+                  "value": "like",
+                  "description": "Sort order (like or ctr)"
+                },
+                {
+                  "key": "country_code",
+                  "value": "RO",
+                  "description": "Country code"
+                }
+              ]
+            },
+            "description": "Search TikTok with various filters"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "TikTok Accounts",
       "item": [
         {
