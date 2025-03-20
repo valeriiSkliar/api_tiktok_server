@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/require-await */
-// src/auth/implementations/TikTokAuthenticator.ts (обновлённый)
 
 import {
   createPlaywrightRouter,
@@ -27,9 +26,9 @@ import {
 } from './steps';
 import { BrowserHelperService } from '../services';
 import { EmailService } from '../services';
-import * as path from 'path';
 import { SessionRestoreService } from '../services';
 import { IntegratedRequestCaptureService } from '../services/RequestCaptureService';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * TikTok authenticator implementation
@@ -52,6 +51,7 @@ export class TikTokAuthenticator implements IAuthenticator {
   private loginUrl =
     'https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en';
   private sessionStoragePath = 'storage/sessions';
+  private prisma: PrismaClient;
 
   /**
    * Creates a new TikTokAuthenticator instance
@@ -65,7 +65,6 @@ export class TikTokAuthenticator implements IAuthenticator {
   constructor(
     logger: Log,
     captchaSolver: ICaptchaSolver,
-    // emailVerifier: IEmailVerificationHandler,
     sessionManager: ISessionManager,
     crawlerOptions: Partial<PlaywrightCrawlerOptions> = {},
     emailService: EmailService,
@@ -74,7 +73,6 @@ export class TikTokAuthenticator implements IAuthenticator {
     this.logger = logger;
 
     this.captchaSolver = captchaSolver;
-    // this.emailVerifier = emailVerifier;
     this.sessionManager = sessionManager;
     this.emailService = emailService;
     this.sessionRestoreService = new SessionRestoreService(logger);
@@ -102,18 +100,31 @@ export class TikTokAuthenticator implements IAuthenticator {
       .addStep(
         new SaveSessionStep(logger, sessionManager, this.sessionStoragePath),
       );
+
+    this.prisma = new PrismaClient();
   }
 
   async runAuthenticator(credentials: AuthCredentials): Promise<void> {
-    this.initCrawler(credentials);
-    await this.crawler?.run([this.loginUrl]);
+    this.crawler = await this.initCrawler(credentials);
+    try {
+      await this.crawler?.run([this.loginUrl]);
+    } catch (error) {
+      this.logger.error('Error running authenticator:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    } finally {
+      await this.prisma.$disconnect();
+    }
   }
 
   /**
    * Initialize the crawler with the appropriate request handlers
    * @private
    */
-  private initCrawler(credentials: AuthCredentials): PlaywrightCrawler {
+  private async initCrawler(
+    credentials: AuthCredentials,
+  ): Promise<PlaywrightCrawler> {
     if (this.crawler) {
       return this.crawler;
     }
@@ -124,11 +135,42 @@ export class TikTokAuthenticator implements IAuthenticator {
 
     // Define the session state path based on credentials
     const sessionId = `tiktok_${credentials.email}`;
-    const sessionStateFilename = `${sessionId}.json`;
-    const sessionStatePath = path.join(
-      this.sessionStoragePath,
-      sessionStateFilename,
-    );
+    let sessionStatePath = '';
+
+    // Get valid session from database
+    try {
+      const validSession = await this.prisma.session.findFirst({
+        where: {
+          email: credentials.email,
+          is_valid: true,
+          expires_at: {
+            gt: new Date(), // Not expired
+          },
+          status: 'ACTIVE',
+        },
+        orderBy: {
+          last_activity_timestamp: 'desc', // Get the most recently used session
+        },
+      });
+
+      this.logger.info('Valid session found:', {
+        email: credentials.email,
+        session: validSession,
+      });
+
+      if (validSession?.session_data && validSession.storage_path) {
+        // Ensure storage_path is a string before assigning
+        const storagePath = String(validSession.storage_path);
+        if (storagePath) {
+          sessionStatePath = storagePath;
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error getting valid session:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    }
 
     this.router.addDefaultHandler(async (ctx) => {
       try {
@@ -146,11 +188,14 @@ export class TikTokAuthenticator implements IAuthenticator {
           },
         });
 
-        // Attempt to restore session
-        const sessionRestored = await this.sessionRestoreService.restoreSession(
-          ctx.page,
-          sessionStatePath,
-        );
+        // Attempt to restore session only if we have a valid path
+        let sessionRestored = false;
+        if (sessionStatePath) {
+          sessionRestored = await this.sessionRestoreService.restoreSession(
+            ctx.page,
+            sessionStatePath,
+          );
+        }
 
         if (sessionRestored) {
           this.logger.info('Successfully restored previous session!');
@@ -171,9 +216,6 @@ export class TikTokAuthenticator implements IAuthenticator {
             lastUsedAt: new Date(),
             proxyConfig: credentials.proxyConfig,
           };
-
-          // Save the restored session via the session manager
-          await this.sessionManager.saveSession(this.currentSession);
         } else {
           this.logger.info(
             'Session restoration failed or expired, proceeding with new login',
