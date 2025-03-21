@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionRefreshService } from './session-refresh.service';
 
 export interface TikTokSearchOptions {
   period?: 7 | 30 | 180;
@@ -13,9 +14,18 @@ export interface TikTokSearchOptions {
 
 @Injectable()
 export class TikTokSearchService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(TikTokSearchService.name);
 
-  private async getValidApiConfig() {
+  constructor(
+    private prisma: PrismaService,
+    private sessionRefreshService: SessionRefreshService,
+  ) {}
+
+  private async getValidApiConfig(forceRefresh = false) {
+    if (forceRefresh) {
+      this.logger.log('Forcing refresh of API configuration');
+      await this.sessionRefreshService.refreshActiveSession();
+    }
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
     const config = await this.prisma.apiConfiguration.findFirst({
@@ -30,8 +40,15 @@ export class TikTokSearchService {
       },
     });
 
+    if (!config && !forceRefresh) {
+      this.logger.warn('No valid API configuration found, attempting refresh');
+      return this.getValidApiConfig(true);
+    }
+
     if (!config) {
-      throw new Error('No valid API configuration found');
+      throw new Error(
+        'No valid API configuration found even after refresh attempt',
+      );
     }
 
     return config;
